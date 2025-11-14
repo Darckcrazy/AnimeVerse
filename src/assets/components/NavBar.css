@@ -1,0 +1,80 @@
+/* overrides minimi per il logo */
+.navbar-brand img {
+  height: 100px;
+  width: 150px;
+  display: block;
+}
+
+/*barra di ricerca*/
+.av-search {
+  position: relative;
+  align-items: center;
+  width: clamp(360px, 40vw, 720px);
+  max-width: 720px;
+}
+
+.av-search__icon {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #cbd5e1;
+  border-right: 0;
+  border-radius: 9999px 0 0 9999px;
+}
+
+.av-search__input {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  caret-color: #ffffff;
+  -webkit-text-fill-color: #ffffff;
+  padding-left: 0.75rem;
+  padding-right: 3rem; /* spazio per clear e badge */
+  border-left: 0;
+  border-right: 0;
+  border-radius: 0;
+  transition: box-shadow 180ms ease, background 180ms ease,
+    border-color 180ms ease;
+}
+
+.av-search__input::placeholder {
+  color: #9ca3af;
+}
+
+.av-search__input:focus {
+  outline: none;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: none !important;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Nasconde i controlli nativi dei campi search (X, lente, risultati) */
+input[type="search"]::-webkit-search-cancel-button,
+input[type="search"]::-webkit-search-decoration,
+input[type="search"]::-webkit-search-results-button,
+input[type="search"]::-webkit-search-results-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* Rimuove il glow blu di Bootstrap */
+.av-search .form-control:focus,
+.av-search .btn:focus,
+.av-search .input-group-text:focus,
+.av-search .form-control:focus-visible,
+.av-search .btn:focus-visible,
+.av-search .input-group-text:focus-visible {
+  box-shadow: none !important;
+}
+
+.av-search__clear {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #cbd5e1;
+  border-left: 0;
+  border-radius: 0 9999px 9999px 0;
+}
+
+.av-search__clear:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
