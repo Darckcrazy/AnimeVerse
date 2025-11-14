@@ -1,4 +1,4 @@
-import './Navbar.css';
+import './NavBar.css'
 import logo from '../AnimeVerse.png';
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
