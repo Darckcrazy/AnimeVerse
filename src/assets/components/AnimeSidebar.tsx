@@ -26,8 +26,8 @@ export default function AnimeSidebar() {
         const latestJson = await latestRes.json();
         setLatest(Array.isArray(latestJson?.data) ? latestJson.data : []);
 
-        // Tendenze: top anime in airing (in onda)
-        const trendRes = await fetch('https://api.jikan.moe/v4/top/anime?filter=airing&limit=8', {
+        // Tendenze: top anime
+        const trendRes = await fetch('https://api.jikan.moe/v4/top/anime?limit=8', {
           signal: controller.signal,
         });
         const trendJson = await trendRes.json();

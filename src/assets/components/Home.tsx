@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import './Home.css';
+import Recommendations from './Recommendations';
 
 export default function Home() {
   return (
@@ -48,6 +49,10 @@ export default function Home() {
             <i className="bi bi-arrow-right-short"></i>
           </Link>
         </article>
+      </section>
+
+      <section className="av-recommendations-section container">
+        <Recommendations />
       </section>
 
       <footer className="av-footer container">

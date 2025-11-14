@@ -3,6 +3,11 @@ import './Anime.css';
 import MangaSidebar from './MangaSidebar';
 import { Link } from 'react-router-dom';
 
+type Genre = {
+  mal_id: number;
+  name: string;
+};
+
 type JikanManga = {
   mal_id: number;
   url: string;
@@ -28,6 +33,9 @@ export default function Manga() {
   const [results, setResults] = useState<JikanManga[]>([]);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [genres, setGenres] = useState<Genre[]>([]);
+  const [selectedGenre, setSelectedGenre] = useState<number | null>(null);
+  const [selectedYear, setSelectedYear] = useState<number | null>(null);
 
   useEffect(() => {
     const id = setTimeout(() => setDebounced(query.trim()), 350);
@@ -41,15 +49,31 @@ export default function Manga() {
   }, [debounced]);
 
   useEffect(() => {
+    setResults([]);
+    setPage(1);
+    setHasMore(true);
+  }, [debounced, selectedGenre, selectedYear]);
+
+  useEffect(() => {
     const controller = new AbortController();
     const run = async () => {
       setError(null);
       setLoading(true);
       try {
         const limit = 24;
-        const url = debounced
-          ? `https://api.jikan.moe/v4/manga?q=${encodeURIComponent(debounced)}&limit=${limit}&order_by=score&sort=desc&page=${page}`
+        const hasFilters = selectedGenre || selectedYear;
+        const query = debounced || (hasFilters ? ' ' : '');
+        let url = query
+          ? `https://api.jikan.moe/v4/manga?q=${encodeURIComponent(query)}&limit=${limit}&order_by=score&sort=desc&page=${page}`
           : `https://api.jikan.moe/v4/top/manga?limit=${limit}&page=${page}`;
+
+        if (selectedGenre) {
+          url += `&genres=${selectedGenre}`;
+        }
+        if (selectedYear) {
+          url += `&start_date=${selectedYear}-01-01&end_date=${selectedYear}-12-31`;
+        }
+
         const res = await fetch(url, { signal: controller.signal });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
@@ -65,7 +89,22 @@ export default function Manga() {
     };
     run();
     return () => controller.abort();
-  }, [debounced, page]);
+  }, [debounced, page, selectedGenre, selectedYear]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const run = async () => {
+      try {
+        const res = await fetch('https://api.jikan.moe/v4/genres/manga', { signal: controller.signal });
+        const json = await res.json();
+        setGenres(Array.isArray(json?.data) ? json.data : []);
+      } catch {
+        // ignore
+      }
+    };
+    run();
+    return () => controller.abort();
+  }, []);
 
   const placeholder = useMemo(
     () => ['Berserk', 'One Piece', 'Chainsaw Man', 'Vagabond'][Math.floor(Math.random() * 4)],
@@ -91,6 +130,54 @@ export default function Manga() {
           )}
         </div>
       </header>
+
+      <div className="av-filters mb-3">
+        <div className="av-filters__container">
+          <div className="av-filter-group">
+            <i className="bi bi-tags-fill av-filter-icon"></i>
+            <select
+              className="av-filter-select"
+              value={selectedGenre || ''}
+              onChange={(e) => setSelectedGenre(e.target.value ? Number(e.target.value) : null)}
+            >
+              <option value="">Tutti i generi</option>
+              {genres.map((g) => (
+                <option key={g.mal_id} value={g.mal_id}>
+                  {g.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="av-filter-group">
+            <i className="bi bi-calendar-event-fill av-filter-icon"></i>
+            <select
+              className="av-filter-select"
+              value={selectedYear || ''}
+              onChange={(e) => setSelectedYear(e.target.value ? Number(e.target.value) : null)}
+            >
+              <option value="">Tutti gli anni</option>
+              {Array.from({ length: 30 }, (_, i) => new Date().getFullYear() - i).map((year) => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {(selectedGenre || selectedYear) && (
+            <button
+              className="av-filter-reset"
+              onClick={() => {
+                setSelectedGenre(null);
+                setSelectedYear(null);
+              }}
+            >
+              <i className="bi bi-x-circle-fill"></i> Reset filtri
+            </button>
+          )}
+        </div>
+      </div>
 
       <div className="av-anime__layout">
         <MangaSidebar />

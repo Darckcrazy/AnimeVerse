@@ -3,6 +3,11 @@ import './Anime.css';
 import AnimeSidebar from './AnimeSidebar';
 import { Link } from 'react-router-dom';
 
+type Genre = {
+  mal_id: number;
+  name: string;
+};
+
 type JikanAnime = {
   mal_id: number;
   url: string;
@@ -24,6 +29,10 @@ export default function Anime() {
   const [results, setResults] = useState<JikanAnime[]>([]);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [genres, setGenres] = useState<Genre[]>([]);
+  const [selectedGenre, setSelectedGenre] = useState<number | null>(null);
+  const [selectedYear, setSelectedYear] = useState<number | null>(null);
+  const [selectedSeason, setSelectedSeason] = useState<string | null>(null);
 
   useEffect(() => {
     const id = setTimeout(() => setDebounced(query.trim()), 350);
@@ -44,9 +53,23 @@ export default function Anime() {
       setLoading(true);
       try {
         const limit = 24;
-        const url = debounced
-          ? `https://api.jikan.moe/v4/anime?q=${encodeURIComponent(debounced)}&limit=${limit}&order_by=score&sort=desc&page=${page}`
+        const hasFilters = selectedGenre || selectedYear || selectedSeason;
+        const query = debounced || (hasFilters ? ' ' : '');
+        let url = query
+          ? `https://api.jikan.moe/v4/anime?q=${encodeURIComponent(query)}&limit=${limit}&order_by=score&sort=desc&page=${page}`
           : `https://api.jikan.moe/v4/top/anime?limit=${limit}&page=${page}`;
+
+        if (selectedGenre) {
+          url += `&genres=${selectedGenre}`;
+        }
+        if (selectedYear) {
+          url += `&start_date=${selectedYear}-01-01&end_date=${selectedYear}-12-31`;
+        }
+        if (selectedSeason) {
+          const currentYear = new Date().getFullYear();
+          url += `&season=${selectedSeason}&year=${currentYear}`;
+        }
+
         const res = await fetch(url, { signal: controller.signal });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
@@ -62,7 +85,22 @@ export default function Anime() {
     };
     run();
     return () => controller.abort();
-  }, [debounced, page]);
+  }, [debounced, page, selectedGenre, selectedYear, selectedSeason]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const run = async () => {
+      try {
+        const res = await fetch('https://api.jikan.moe/v4/genres/anime', { signal: controller.signal });
+        const json = await res.json();
+        setGenres(Array.isArray(json?.data) ? json.data : []);
+      } catch {
+        // ignore
+      }
+    };
+    run();
+    return () => controller.abort();
+  }, []);
 
   const placeholder = useMemo(
     () => ['Naruto', 'One Piece', 'Attack on Titan', 'Jujutsu Kaisen'][Math.floor(Math.random() * 4)],
@@ -88,6 +126,70 @@ export default function Anime() {
           )}
         </div>
       </header>
+
+      <div className="av-filters mb-3">
+        <div className="av-filters__container">
+          <div className="av-filter-group">
+            <i className="bi bi-tags-fill av-filter-icon"></i>
+            <select
+              className="av-filter-select"
+              value={selectedGenre || ''}
+              onChange={(e) => setSelectedGenre(e.target.value ? Number(e.target.value) : null)}
+            >
+              <option value="">Tutti i generi</option>
+              {genres.map((g) => (
+                <option key={g.mal_id} value={g.mal_id}>
+                  {g.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="av-filter-group">
+            <i className="bi bi-calendar-event-fill av-filter-icon"></i>
+            <select
+              className="av-filter-select"
+              value={selectedYear || ''}
+              onChange={(e) => setSelectedYear(e.target.value ? Number(e.target.value) : null)}
+            >
+              <option value="">Tutti gli anni</option>
+              {Array.from({ length: 30 }, (_, i) => new Date().getFullYear() - i).map((year) => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="av-filter-group">
+            <i className="bi bi-sun-fill av-filter-icon"></i>
+            <select
+              className="av-filter-select"
+              value={selectedSeason || ''}
+              onChange={(e) => setSelectedSeason(e.target.value || null)}
+            >
+              <option value="">Tutte le stagioni</option>
+              <option value="winter">Inverno</option>
+              <option value="spring">Primavera</option>
+              <option value="summer">Estate</option>
+              <option value="fall">Autunno</option>
+            </select>
+          </div>
+
+          {(selectedGenre || selectedYear || selectedSeason) && (
+            <button
+              className="av-filter-reset"
+              onClick={() => {
+                setSelectedGenre(null);
+                setSelectedYear(null);
+                setSelectedSeason(null);
+              }}
+            >
+              <i className="bi bi-x-circle-fill"></i> Reset filtri
+            </button>
+          )}
+        </div>
+      </div>
 
       <div className="av-anime__layout">
         <AnimeSidebar />

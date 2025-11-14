@@ -2,6 +2,14 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import './Anime.css';
 
+type Review = {
+  id: string;
+  user: string;
+  rating: number;
+  comment: string;
+  date: string;
+};
+
 type AnimeDetailData = {
   mal_id: number;
   title: string;
@@ -47,6 +55,9 @@ export default function AnimeDetail() {
   const [anime, setAnime] = useState<AnimeDetailData | null>(null);
   const [episodes, setEpisodes] = useState<EpisodeItem[]>([]);
   const [streaming, setStreaming] = useState<Array<{ name: string; url: string }>>([]);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [newReview, setNewReview] = useState({ rating: 5, comment: '' });
 
   useEffect(() => {
     if (!id) return;
@@ -104,6 +115,37 @@ export default function AnimeDetail() {
         } catch {
           setStreaming([]);
         }
+
+        // Load mock reviews from localStorage
+        const savedReviews = localStorage.getItem(`anime_reviews_${id}`);
+        if (savedReviews) {
+          setReviews(JSON.parse(savedReviews));
+        } else {
+          // Mock reviews
+          setReviews([
+            {
+              id: '1',
+              user: 'AnimeFan2024',
+              rating: 9,
+              comment: 'Uno dei migliori anime che abbia mai visto! La storia è coinvolgente e i personaggi sono ben sviluppati.',
+              date: '2024-01-15'
+            },
+            {
+              id: '2',
+              user: 'OtakuGirl',
+              rating: 8,
+              comment: 'Ottima animazione e colonna sonora. Mi ha fatto emozionare più volte.',
+              date: '2024-01-10'
+            },
+            {
+              id: '3',
+              user: 'MangaLover',
+              rating: 7,
+              comment: 'Buono ma non eccezionale. Alcuni archi narrativi potevano essere meglio sviluppati.',
+              date: '2024-01-05'
+            }
+          ]);
+        }
       } catch (e: unknown) {
         if (e instanceof DOMException && e.name === 'AbortError') return;
         setError('Impossibile caricare i dettagli. Riprova più tardi.');
@@ -129,6 +171,24 @@ export default function AnimeDetail() {
     const embed = anime.trailer.embed_url ?? (ytId ? `https://www.youtube.com/embed/${ytId}` : null);
     return embed;
   }, [anime]);
+
+  const handleAddReview = () => {
+    if (!newReview.comment.trim()) return;
+
+    const review: Review = {
+      id: Date.now().toString(),
+      user: 'Tu',
+      rating: newReview.rating,
+      comment: newReview.comment,
+      date: new Date().toISOString().split('T')[0]
+    };
+
+    const updatedReviews = [review, ...reviews];
+    setReviews(updatedReviews);
+    localStorage.setItem(`anime_reviews_${id}`, JSON.stringify(updatedReviews));
+    setNewReview({ rating: 5, comment: '' });
+    setShowReviewForm(false);
+  };
 
   return (
     <main className="av-anime container">
@@ -221,6 +281,78 @@ export default function AnimeDetail() {
                 ))}
               </ul>
             )}
+          </div>
+
+          <div className="av-detail__reviews">
+            <div className="av-reviews-header">
+              <h4>Recensioni ({reviews.length})</h4>
+              <button
+                className="av-btn"
+                onClick={() => setShowReviewForm(!showReviewForm)}
+              >
+                {showReviewForm ? 'Annulla' : 'Scrivi recensione'}
+              </button>
+            </div>
+
+            {showReviewForm && (
+              <div className="av-review-form">
+                <div className="av-form-group">
+                  <label>Voto:</label>
+                  <div className="av-rating-input">
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        className={`av-star ${newReview.rating >= star ? 'active' : ''}`}
+                        onClick={() => setNewReview(prev => ({ ...prev, rating: star }))}
+                      >
+                        <i className="bi bi-star-fill"></i>
+                      </button>
+                    ))}
+                    <span className="av-rating-value">{newReview.rating}/10</span>
+                  </div>
+                </div>
+                <div className="av-form-group">
+                  <label>Commento:</label>
+                  <textarea
+                    value={newReview.comment}
+                    onChange={(e) => setNewReview(prev => ({ ...prev, comment: e.target.value }))}
+                    placeholder="Condividi la tua opinione su questo anime..."
+                    rows={4}
+                  />
+                </div>
+                <button
+                  className="av-btn"
+                  onClick={handleAddReview}
+                  disabled={!newReview.comment.trim()}
+                >
+                  Pubblica recensione
+                </button>
+              </div>
+            )}
+
+            <div className="av-reviews-list">
+              {reviews.map((review) => (
+                <div key={review.id} className="av-review">
+                  <div className="av-review-header">
+                    <div className="av-review-user">
+                      <strong>{review.user}</strong>
+                      <span className="av-review-date">{review.date}</span>
+                    </div>
+                    <div className="av-review-rating">
+                      {[...Array(10)].map((_, i) => (
+                        <i
+                          key={i}
+                          className={`bi bi-star-fill ${i < review.rating ? 'filled' : ''}`}
+                        />
+                      ))}
+                      <span>{review.rating}/10</span>
+                    </div>
+                  </div>
+                  <p className="av-review-comment">{review.comment}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
       )}
