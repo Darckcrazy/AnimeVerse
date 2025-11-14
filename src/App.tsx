@@ -2,7 +2,10 @@ import './App.css'
 import NavBar from './assets/components/NavBar';
 import Home from './assets/components/Home';
 import Anime from './assets/components/Anime';
+import Manga from './assets/components/Manga';
+import MangaDetail from './assets/components/MangaDetail';
 import AnimeDetail from './assets/components/AnimeDetail';
+import Community from './assets/components/Community';
 import { Routes, Route } from 'react-router-dom';
 
 function App() {
@@ -14,9 +17,13 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/anime" element={<Anime />} />
         <Route path="/anime/:id" element={<AnimeDetail />} />
-       </Routes>
+        <Route path="/manga" element={<Manga />} />
+        <Route path="/manga/:id" element={<MangaDetail />} />
+        <Route path="/community" element={<Community />} />
+      </Routes>
     </>
   )
 }
+
 
 export default App
