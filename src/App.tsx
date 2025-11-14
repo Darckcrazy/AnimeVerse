@@ -6,6 +6,7 @@ import Manga from './assets/components/Manga';
 import MangaDetail from './assets/components/MangaDetail';
 import AnimeDetail from './assets/components/AnimeDetail';
 import Community from './assets/components/Community';
+import About from './assets/components/About';
 import { Routes, Route } from 'react-router-dom';
 
 function App() {
@@ -20,6 +21,7 @@ function App() {
         <Route path="/manga" element={<Manga />} />
         <Route path="/manga/:id" element={<MangaDetail />} />
         <Route path="/community" element={<Community />} />
+        <Route path="/about" element={<About />} />
       </Routes>
     </>
   )
