@@ -67,19 +67,10 @@ type NavLink = {
               {navLinks.map((link) => (
                 <li key={link.label} className="nav-item">
                   {link.label === 'Profile' ? (
-                    <a
-                      className="nav-link d-flex align-items-center gap-1"
-                      href="#"
-                      data-bs-toggle="modal"
-                      data-bs-target="#authModal"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        setAuthMode('signup');
-                      }}
-                    >
+                    <Link className="nav-link d-flex align-items-center gap-1" to="/user">
                       <i className={`bi ${link.iconClass}`}></i>
                       <span>{link.label}</span>
-                    </a>
+                    </Link>
                   ) : (
                     <Link className="nav-link d-flex align-items-center gap-1" to={link.href}>
                       <i className={`bi ${link.iconClass}`}></i>
