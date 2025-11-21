@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import './Home.css';
-import Recommendations from './Recommendations';
+import RecommendationsSection from './RecommendationsSection';
 
 export default function Home() {
   return (
@@ -52,7 +52,7 @@ export default function Home() {
       </section>
 
       <section className="av-recommendations-section container">
-        <Recommendations />
+        <RecommendationsSection />
       </section>
 
       <footer className="av-footer container">

@@ -9,6 +9,7 @@ import Community from './assets/components/Community';
 import About from './assets/components/About';
 import User from './assets/components/User';
 import Watchlist from './assets/components/Watchlist';
+import Recommendations from './assets/components/Recommendations';
 import { Routes, Route } from 'react-router-dom';
 
 function App() {
@@ -26,6 +27,7 @@ function App() {
         <Route path="/about" element={<About />} />
         <Route path="/user" element={<User />} />
         <Route path="/watchlist" element={<Watchlist />} />
+        <Route path="/recommendations" element={<Recommendations />} />
       </Routes>
     </>
   )
