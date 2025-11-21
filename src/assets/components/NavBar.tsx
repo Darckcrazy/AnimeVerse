@@ -20,7 +20,8 @@ type NavLink = {
   export default function NavBar() {
     const emailRef = useRef<HTMLInputElement>(null);
     const modalRef = useRef<HTMLDivElement>(null);
-  
+
+    const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [authMode, setAuthMode] = useState<'signup' | 'login'>('signup');
@@ -102,6 +103,23 @@ type NavLink = {
             </div>
             <div className="modal-body">
               <form onSubmit={(e) => e.preventDefault()}>
+
+                {/* USERNAME SOLO IN SIGNUP */}
+                {authMode === 'signup' && (
+                  <div className="mb-3">
+                    <label htmlFor="signupUsername" className="form-label">Username</label>
+                    <input
+                      type="text"
+                      className="form-control bg-black text-light border-secondary"
+                      id="signupUsername"
+                      placeholder="Scegli un username"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      required
+                    />
+                  </div>
+                )}
+
                 <div className="mb-3">
                   <label htmlFor="signupEmail" className="form-label">Email</label>
                   <input
@@ -115,6 +133,7 @@ type NavLink = {
                     required
                   />
                 </div>
+
                 <div className="mb-3">
                   <label htmlFor="signupPassword" className="form-label">Password</label>
                   <input
@@ -127,8 +146,12 @@ type NavLink = {
                     required
                   />
                 </div>
-                <button type="submit" className="btn btn-primary w-100">{authMode === 'signup' ? 'Registrati' : 'Accedi'}</button>
+
+                <button type="submit" className="btn btn-primary w-100">
+                  {authMode === 'signup' ? 'Registrati' : 'Accedi'}
+                </button>
               </form>
+
             </div>
             <div className="modal-footer border-secondary d-flex justify-content-between">
               {authMode === 'signup' ? (
