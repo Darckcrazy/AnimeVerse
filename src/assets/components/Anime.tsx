@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import './Anime.css';
 import AnimeSidebar from './AnimeSidebar';
 import { Link } from 'react-router-dom';
+import { useWatchlist } from '../hooks/useWatchlist';
 
 type Genre = {
   mal_id: number;
@@ -22,6 +23,7 @@ type JikanAnime = {
 };
 
 export default function Anime() {
+  const { addToWatchlist, removeFromWatchlist, isInWatchlist } = useWatchlist();
   const [query, setQuery] = useState('');
   const [debounced, setDebounced] = useState('');
   const [loading, setLoading] = useState(false);
@@ -208,22 +210,44 @@ export default function Anime() {
                 a.images?.webp?.image_url ||
                 a.images?.jpg?.image_url ||
                 'https://via.placeholder.com/300x420?text=Anime';
+              const inWatchlist = isInWatchlist(a.mal_id, 'anime');
               return (
-              <Link key={a.mal_id} to={`/anime/${a.mal_id}`} className="av-card">
-                  <div className="av-card__media">
-                    <img src={img} alt={a.title} loading="lazy" />
-                  </div>
-                  <div className="av-card__meta">
-                    <h4 title={a.title}>{a.title}</h4>
-                    <div className="av-card__tags">
-                      {a.type && <span className="av-tag">{a.type}</span>}
-                      {typeof a.score === 'number' && (
-                        <span className="av-tag"><i className="bi bi-star-fill"></i>{a.score.toFixed(1)}</span>
-                      )}
-                      {a.year && <span className="av-tag">{a.year}</span>}
+                <div key={a.mal_id} className="av-card-wrapper">
+                  <Link to={`/anime/${a.mal_id}`} className="av-card">
+                    <div className="av-card__media">
+                      <img src={img} alt={a.title} loading="lazy" />
                     </div>
-                  </div>
-                </Link>
+                    <div className="av-card__meta">
+                      <h4 title={a.title}>{a.title}</h4>
+                      <div className="av-card__tags">
+                        {a.type && <span className="av-tag">{a.type}</span>}
+                        {typeof a.score === 'number' && (
+                          <span className="av-tag"><i className="bi bi-star-fill"></i>{a.score.toFixed(1)}</span>
+                        )}
+                        {a.year && <span className="av-tag">{a.year}</span>}
+                      </div>
+                    </div>
+                  </Link>
+                  <button
+                    className={`av-card-btn ${inWatchlist ? 'av-card-btn--active' : ''}`}
+                    onClick={() => {
+                      if (inWatchlist) {
+                        removeFromWatchlist(a.mal_id, 'anime');
+                      } else {
+                        addToWatchlist({
+                          id: a.mal_id,
+                          type: 'anime',
+                          title: a.title,
+                          image: img,
+                          status: 'planning',
+                        });
+                      }
+                    }}
+                    title={inWatchlist ? 'Rimuovi dalla watchlist' : 'Aggiungi alla watchlist'}
+                  >
+                    <i className={`bi ${inWatchlist ? 'bi-bookmark-fill' : 'bi-bookmark'}`}></i>
+                  </button>
+                </div>
               );
             })}
           </div>

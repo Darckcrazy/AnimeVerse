@@ -324,6 +324,45 @@
   background: rgba(255, 255, 255, 0.04);
 }
 
+.av-card-wrapper {
+  position: relative;
+}
+
+.av-card-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.4);
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 160ms ease;
+  backdrop-filter: blur(8px);
+}
+
+.av-card-btn:hover {
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  border-color: rgba(139, 92, 246, 0.5);
+}
+
+.av-card-btn--active {
+  background: rgba(139, 92, 246, 0.3);
+  color: #e9d5ff;
+  border-color: rgba(139, 92, 246, 0.5);
+}
+
+.av-card-btn--active:hover {
+  background: rgba(139, 92, 246, 0.4);
+  color: #e9d5ff;
+}
+
 /* ========== Anime detail ========== */
 .av-detail {
   display: grid;

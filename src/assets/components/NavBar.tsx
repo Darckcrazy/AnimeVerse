@@ -13,6 +13,7 @@ type NavLink = {
   const navLinks: NavLink[] = [
     { label: 'Anime', href: '/anime', iconClass: 'bi-film' },
     { label: 'Manga', href: '/manga', iconClass: 'bi-book' },
+    { label: 'Watchlist', href: '/watchlist', iconClass: 'bi-bookmark' },
     { label: 'About', href: '/about', iconClass: 'bi-info-circle' },
     { label: 'Profile', href: '#', iconClass: 'bi-person' },
   ];
