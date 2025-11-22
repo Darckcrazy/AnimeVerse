@@ -96,17 +96,11 @@
             <artifactId>cloudinary-http44</artifactId>
             <version>1.39.0</version>
         </dependency>
-        <!-- https://mvnrepository.com/artifact/com.konghq/unirest-object-mappers-gson -->
+        <!-- https://mvnrepository.com/artifact/com.konghq/unirest-java -->
         <dependency>
             <groupId>com.konghq</groupId>
-            <artifactId>unirest-object-mappers-gson</artifactId>
-            <version>4.2.9</version>
-        </dependency>
-        <!-- https://mvnrepository.com/artifact/com.konghq/unirest-java-core -->
-        <dependency>
-            <groupId>com.konghq</groupId>
-            <artifactId>unirest-java-core</artifactId>
-            <version>4.5.0</version>
+            <artifactId>unirest-java</artifactId>
+            <version>3.13.9</version>
         </dependency>
     </dependencies>
 

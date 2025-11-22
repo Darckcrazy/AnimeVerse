@@ -8,6 +8,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/anime")
 public class AnimeController {
@@ -54,5 +56,16 @@ public class AnimeController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteAnime(@PathVariable Long animeId) {
         this.animeService.deleteAnime(animeId);
+    }
+
+    @GetMapping("/jikan/search")
+    public List<Anime> searchAnimeFromJikan(@RequestParam String query) {
+        return this.animeService.searchAnimeFromJikan(query);
+    }
+
+    @PostMapping("/jikan/import/{jikanId}")
+    @ResponseStatus(HttpStatus.CREATED)
+    public Anime importAnimeFromJikan(@PathVariable Long jikanId) {
+        return this.animeService.importAnimeFromJikan(jikanId);
     }
 }

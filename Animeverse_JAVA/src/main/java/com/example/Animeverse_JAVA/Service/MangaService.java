@@ -2,6 +2,7 @@ package com.example.Animeverse_JAVA.Service;
 
 import com.example.Animeverse_JAVA.Entities.Manga;
 import com.example.Animeverse_JAVA.Exceptions.IdNotFoundException;
+import com.example.Animeverse_JAVA.External.JikanMangaService;
 import com.example.Animeverse_JAVA.Repository.MangaRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,11 +12,15 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 @Slf4j
 public class MangaService {
     @Autowired
     private MangaRepository mangaRepository;
+    @Autowired
+    private JikanMangaService jikanMangaService;
 
     public Page<Manga> findAllManga(int pageNumber, int pageSize, String sortBy) {
         if (pageSize > 50) pageSize = 50;
@@ -59,5 +64,41 @@ public class MangaService {
         Manga manga = this.findMangaById(mangaId);
         this.mangaRepository.delete(manga);
         log.info("Manga with ID: " + mangaId + " has been deleted");
+    }
+
+    public List<Manga> searchMangaFromJikan(String query) {
+        List<Manga> jikanResults = jikanMangaService.searchMangaFromJikan(query);
+
+        List<Manga> savedResults = new java.util.ArrayList<>();
+        for (Manga manga : jikanResults) {
+            Manga existing = this.mangaRepository.findByJikanId(manga.getJikanId()).orElse(null);
+            if (existing == null) {
+                Manga saved = this.mangaRepository.save(manga);
+                savedResults.add(saved);
+                log.info("Manga with Jikan ID: {} saved to database", manga.getJikanId());
+            } else {
+                savedResults.add(existing);
+                log.info("Manga with Jikan ID: {} already exists in database", manga.getJikanId());
+            }
+        }
+
+        return savedResults;
+    }
+
+    public Manga importMangaFromJikan(Long jikanId) {
+        Manga existing = this.mangaRepository.findByJikanId(jikanId).orElse(null);
+        if (existing != null) {
+            log.info("Manga with Jikan ID: {} already exists in database", jikanId);
+            return existing;
+        }
+
+        Manga jikanManga = jikanMangaService.getMangaDetailsFromJikan(jikanId);
+        if (jikanManga != null) {
+            Manga saved = this.mangaRepository.save(jikanManga);
+            log.info("Manga with Jikan ID: {} imported and saved to database", jikanId);
+            return saved;
+        }
+
+        throw new IdNotFoundException("Manga with Jikan ID: " + jikanId + " not found");
     }
 }

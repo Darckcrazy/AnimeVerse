@@ -1,9 +1,9 @@
 package com.example.Animeverse_JAVA.Tools;
 
 import com.example.Animeverse_JAVA.Entities.Utente;
-import kong.unirest.core.HttpResponse;
-import kong.unirest.core.JsonNode;
-import kong.unirest.core.Unirest;
+import kong.unirest.HttpResponse;
+import kong.unirest.JsonNode;
+import kong.unirest.Unirest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
