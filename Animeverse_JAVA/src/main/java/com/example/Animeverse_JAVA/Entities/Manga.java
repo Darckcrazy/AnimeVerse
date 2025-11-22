@@ -4,8 +4,6 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.time.LocalDate;
-
 @Entity
 @Table(name = "manga")
 @Getter
@@ -23,11 +21,11 @@ public class Manga {
     @Column(name = "title", nullable = false)
     private String title;
 
-    @Column(name = "description", columnDefinition = "TEXT")
-    private String description;
+    @Column(name = "synopsis", columnDefinition = "TEXT")
+    private String synopsis;
 
-    @Column(name = "release_date")
-    private LocalDate releaseDate;
+    @Column(name = "image_url")
+    private String imageUrl;
 
     @Column(name = "chapters")
     private Integer chapters;
@@ -35,31 +33,23 @@ public class Manga {
     @Column(name = "status")
     private String status;
 
-    @Column(name = "genre")
-    private String genre;
+    @Column(name = "score")
+    private Double score;
 
-    @Column(name = "image_url")
-    private String imageUrl;
+    @Column(name = "year")
+    private Integer year;
 
-    @Column(name = "rating")
-    private Double rating;
+    @Column(name = "jikan_id")
+    private Long jikanId;
 
-    @Column(name = "author")
-    private String author;
-
-    @Column(name = "illustrator")
-    private String illustrator;
-
-    public Manga(String title, String description, LocalDate releaseDate, Integer chapters, String status, String genre, String imageUrl, Double rating, String author, String illustrator) {
+    public Manga(String title, String synopsis, String imageUrl, Integer chapters, String status, Double score, Integer year, Long jikanId) {
         this.title = title;
-        this.description = description;
-        this.releaseDate = releaseDate;
+        this.synopsis = synopsis;
+        this.imageUrl = imageUrl;
         this.chapters = chapters;
         this.status = status;
-        this.genre = genre;
-        this.imageUrl = imageUrl;
-        this.rating = rating;
-        this.author = author;
-        this.illustrator = illustrator;
+        this.score = score;
+        this.year = year;
+        this.jikanId = jikanId;
     }
 }

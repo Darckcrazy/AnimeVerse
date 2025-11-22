@@ -4,8 +4,6 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.time.LocalDate;
-
 @Entity
 @Table(name = "anime")
 @Getter
@@ -23,11 +21,11 @@ public class Anime {
     @Column(name = "title", nullable = false)
     private String title;
 
-    @Column(name = "description", columnDefinition = "TEXT")
-    private String description;
+    @Column(name = "synopsis", columnDefinition = "TEXT")
+    private String synopsis;
 
-    @Column(name = "release_date")
-    private LocalDate releaseDate;
+    @Column(name = "image_url")
+    private String imageUrl;
 
     @Column(name = "episodes")
     private Integer episodes;
@@ -35,27 +33,23 @@ public class Anime {
     @Column(name = "status")
     private String status;
 
-    @Column(name = "genre")
-    private String genre;
+    @Column(name = "score")
+    private Double score;
 
-    @Column(name = "image_url")
-    private String imageUrl;
+    @Column(name = "year")
+    private Integer year;
 
-    @Column(name = "rating")
-    private Double rating;
+    @Column(name = "jikan_id")
+    private Long jikanId;
 
-    @Column(name = "studio")
-    private String studio;
-
-    public Anime(String title, String description, LocalDate releaseDate, Integer episodes, String status, String genre, String imageUrl, Double rating, String studio) {
+    public Anime(String title, String synopsis, String imageUrl, Integer episodes, String status, Double score, Integer year, Long jikanId) {
         this.title = title;
-        this.description = description;
-        this.releaseDate = releaseDate;
+        this.synopsis = synopsis;
+        this.imageUrl = imageUrl;
         this.episodes = episodes;
         this.status = status;
-        this.genre = genre;
-        this.imageUrl = imageUrl;
-        this.rating = rating;
-        this.studio = studio;
+        this.score = score;
+        this.year = year;
+        this.jikanId = jikanId;
     }
 }
