@@ -1,13 +1,48 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuthContext';
 import './User.css';
 
 export default function User() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const { isLoggedIn, user, logout } = useAuth();
   const [activeTab, setActiveTab] = useState<'collection' | 'lists' | 'activity'>('collection');
+  const navigate = useNavigate();
+
+  if (!isLoggedIn) {
+    return (
+      <main className="av-user-page">
+        <div className="av-user-container container">
+          <div className="av-user-auth">
+            <div className="av-user-auth__content">
+              <div className="av-user-auth__icon">
+                <i className="bi bi-person-circle"></i>
+              </div>
+              <h2>Accedi al tuo profilo</h2>
+              <p>Crea una collezione personale, salva i tuoi preferiti e unisciti alla community.</p>
+              <div className="av-user-auth__buttons">
+                <button
+                  className="av-btn av-btn--primary"
+                  onClick={() => navigate('/login')}
+                >
+                  Accedi
+                </button>
+                <button
+                  className="av-btn av-btn--secondary"
+                  onClick={() => navigate('/signup')}
+                >
+                  Registrati
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   const userProfile = {
-    username: 'AnimeEnthusiast',
-    email: 'user@example.com',
+    username: user?.username || 'Utente',
+    email: user?.email || 'user@example.com',
     joinDate: '2024',
     favoriteGenre: 'Action',
     stats: {
@@ -53,13 +88,13 @@ export default function User() {
               <div className="av-user-auth__buttons">
                 <button
                   className="av-btn av-btn--primary"
-                  onClick={() => setIsLoggedIn(true)}
+                  onClick={() => navigate('/login')}
                 >
                   Accedi
                 </button>
                 <button
                   className="av-btn av-btn--secondary"
-                  onClick={() => setIsLoggedIn(true)}
+                  onClick={() => navigate('/signup')}
                 >
                   Registrati
                 </button>
@@ -175,7 +210,10 @@ export default function User() {
             <section className="av-user-actions">
               <button
                 className="av-btn av-btn--logout"
-                onClick={() => setIsLoggedIn(false)}
+                onClick={() => {
+                  logout();
+                  navigate('/');
+                }}
               >
                 Logout
               </button>
