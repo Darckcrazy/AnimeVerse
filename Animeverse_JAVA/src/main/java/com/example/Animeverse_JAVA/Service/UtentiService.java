@@ -22,7 +22,6 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 import java.util.Map;
 
-
 @Service
 @Slf4j
 public class UtentiService {
@@ -35,14 +34,16 @@ public class UtentiService {
     @Autowired
     private RuoloService ruoloService;
 
-    //Creo delle variabili per dei controlli sull'inserimento dell'avatar del profilo
+    // Creo delle variabili per dei controlli sull'inserimento dell'avatar del
+    // profilo
     private static final long MAX_SIZE = 5 * 1024 * 1024;
     private static final List<String> ALLOWED_FORMAT = List.of("image/jpeg", "image/png");
 
     // FIND ALL (paginato)
 
     public Page<Utente> findAllUtenti(int pageNumber, int pageSize, String sortBy) {
-        if (pageSize > 50) pageSize = 50;
+        if (pageSize > 50)
+            pageSize = 50;
         Pageable pageable = PageRequest.of(pageNumber, pageSize, Sort.by(sortBy).ascending());
         return this.utenteRepository.findAll(pageable);
     }
@@ -62,13 +63,17 @@ public class UtentiService {
 
         Utente newUtente = new Utente(payload.username(),
                 payload.email(),
-                bcrypt.encode(payload.password())
-        );
+                bcrypt.encode(payload.password()));
 
         Ruolo ruoloFound = this.ruoloService.findByIdRuolo(2L);
 
         newUtente.setAvatarURL("https://ui-avatars.com/api/?name=");
         newUtente.getRuolo().add(ruoloFound);
+
+        if (payload.favoriteGenres() != null) {
+            newUtente.setFavoriteGenres(payload.favoriteGenres());
+        }
+
         Utente savedUtente = this.utenteRepository.save(newUtente);
 
         log.info("The user with ID: " + savedUtente.getUtenteId() + " has been duly saved.");
@@ -89,7 +94,11 @@ public class UtentiService {
 
         found.setUsername(payload.username());
         found.setEmail(payload.email());
-        found.setPassword(payload.password());
+        found.setPassword(bcrypt.encode(payload.password()));
+
+        if (payload.favoriteGenres() != null) {
+            found.setFavoriteGenres(payload.favoriteGenres());
+        }
 
         Utente modifyUtente = this.utenteRepository.save(found);
 
@@ -101,29 +110,34 @@ public class UtentiService {
     // UPDATE dell'avatar del profilo
     public Utente uploadAvatarProfile(MultipartFile file, Long idUtente) {
 
-        if (file.isEmpty()) throw new BadRequestException("File vuoto!");
+        if (file == null || file.isEmpty())
+            throw new BadRequestException("File vuoto o non presente!");
         if (file.getSize() > MAX_SIZE)
             throw new BadRequestException("Attenzione, il file è superiore ai 5MB di dimensione");
-        if (!(ALLOWED_FORMAT.contains(file.getContentType())))
-            throw new BadRequestException("Attenzione, il formato non è corretto, deve essere del seguente tipo: (.jpeg) / (.png)");
+        if (file.getContentType() == null || !(ALLOWED_FORMAT.contains(file.getContentType())))
+            throw new BadRequestException(
+                    "Attenzione, il formato non è corretto, deve essere del seguente tipo: (.jpeg) / (.png)");
 
         Utente utenteFound = this.findUtentiById(idUtente);
 
         try {
-            //Cattura dell'URL dell'immagine
+            // Upload e cattura dell'URL dell'immagine
             Map resultMap = getAvatarImage.uploader().upload(file.getBytes(), ObjectUtils.emptyMap());
             String imageUrl = (String) resultMap.get("url");
 
-            //Salvataggio dell'immagine catturata
+            if (imageUrl == null || imageUrl.trim().isEmpty()) {
+                throw new BadRequestException("Impossibile ottenere l'URL dell'immagine dall'upload");
+            }
+
+            // Salvataggio dell'immagine catturata
             utenteFound.setAvatarURL(imageUrl);
             this.utenteRepository.save(utenteFound);
             return utenteFound;
         } catch (Exception ex) {
-            throw new BadRequestException("Errore nell'upload dell'immagine");
+            log.error("Errore nell'upload dell'immagine", ex);
+            throw new BadRequestException("Errore nell'upload dell'immagine: " + ex.getMessage());
         }
-
     }
-
 
     // FIND BY ID & DELETE
 
@@ -135,12 +149,14 @@ public class UtentiService {
     // FIND BY EMAIL
 
     public Utente findUtentiByEmail(String email) {
-        return this.utenteRepository.findByEmail(email).orElseThrow(() -> new NotFoundException("User with email " + email + " has not been found."));
+        return this.utenteRepository.findByEmail(email)
+                .orElseThrow(() -> new NotFoundException("User with email " + email + " has not been found."));
     }
 
     // FIND BY ID
 
     public Utente findUtentiById(Long utenteId) {
-        return this.utenteRepository.findById(utenteId).orElseThrow(() -> new IdNotFoundException("L'utente con ID: " + utenteId + " non è stato trovato"));
+        return this.utenteRepository.findById(utenteId)
+                .orElseThrow(() -> new IdNotFoundException("L'utente con ID: " + utenteId + " non è stato trovato"));
     }
 }

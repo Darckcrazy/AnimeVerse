@@ -71,6 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isLoggedIn,
     user,
     token,
+    setUser,
     login,
     signup,
     logout,

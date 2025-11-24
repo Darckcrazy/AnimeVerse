@@ -5,12 +5,15 @@ export interface User {
   username: string;
   email: string;
   avatarURL?: string;
+  favoriteGenres?: string[];
+  password?: string;
 }
 
 export interface AuthContextType {
   isLoggedIn: boolean;
   user: User | null;
   token: string | null;
+  setUser: (user: User | null) => void;
   login: (email: string, password: string) => Promise<void>;
   signup: (username: string, email: string, password: string) => Promise<void>;
   logout: () => void;

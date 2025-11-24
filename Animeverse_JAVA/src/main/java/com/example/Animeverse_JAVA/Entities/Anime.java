@@ -3,6 +3,7 @@ package com.example.Animeverse_JAVA.Entities;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
+import java.util.Set;
 
 @Entity
 @Table(name = "anime")
@@ -42,7 +43,13 @@ public class Anime {
     @Column(name = "jikan_id")
     private Long jikanId;
 
-    public Anime(String title, String synopsis, String imageUrl, Integer episodes, String status, Double score, Integer year, Long jikanId) {
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "anime_genres", joinColumns = @JoinColumn(name = "anime_id"))
+    @Column(name = "genre")
+    private Set<String> genres;
+
+    public Anime(String title, String synopsis, String imageUrl, Integer episodes, String status, Double score,
+            Integer year, Long jikanId) {
         this.title = title;
         this.synopsis = synopsis;
         this.imageUrl = imageUrl;
@@ -51,5 +58,13 @@ public class Anime {
         this.score = score;
         this.year = year;
         this.jikanId = jikanId;
+    }
+
+    public Set<String> getGenres() {
+        return genres;
+    }
+
+    public void setGenres(Set<String> genres) {
+        this.genres = genres;
     }
 }

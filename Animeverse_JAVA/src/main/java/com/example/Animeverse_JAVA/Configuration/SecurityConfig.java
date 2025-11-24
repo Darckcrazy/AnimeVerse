@@ -51,11 +51,7 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http.cors()
                 .and()
-                .csrf().disable()
-                .exceptionHandling()
-                .and()
-                .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                .and()
+                .csrf().disable() // disabilita CSRF per API REST (dev)
                 .authorizeHttpRequests(authz -> authz
                         .requestMatchers(HttpMethod.POST, "/auth/signup").permitAll()
                         .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
@@ -63,8 +59,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/manga/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/review/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/rating/**").permitAll()
-                        .anyRequest().authenticated()
-                );
+                        .requestMatchers("/api/auth/**", "/api/trending", "/api/recommendations/**").permitAll()
+                        .anyRequest().authenticated())
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 
         http.authenticationProvider(authenticationProvider());
         http.addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);

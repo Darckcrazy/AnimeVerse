@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import './Anime.css';
+import React from "react";
+import * as watchlistService from "../services/watchlistService";
 
 type Review = {
   id: string;
@@ -190,6 +192,29 @@ export default function AnimeDetail() {
     setShowReviewForm(false);
   };
 
+  const addToWatchlist = async () => {
+    try {
+      const currentUserId = (() => {
+        const v = localStorage.getItem('userId'); // assicurati di salvare userId al login
+        return v ? Number(v) : null;
+      })();
+
+      const payload = {
+        userId: currentUserId,
+        itemId: anime?.mal_id || anime?.id,
+        title: anime?.title || anime?.name,
+        status: "TO_WATCH",
+        type: "ANIME",
+        personalRating: null
+      };
+      await watchlistService.addToWatchlist(payload);
+      alert("Aggiunto alla watchlist");
+    } catch (e: any) {
+      console.error(e);
+      alert("Errore aggiunta watchlist: " + (e.message || e));
+    }
+  };
+
   return (
     <main className="av-anime container">
       <header className="av-anime__header">
@@ -354,6 +379,7 @@ export default function AnimeDetail() {
               ))}
             </div>
           </div>
+          <button onClick={addToWatchlist}>Aggiungi alla Watchlist</button>
         </section>
       )}
     </main>

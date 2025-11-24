@@ -1,4 +1,6 @@
-const API_BASE_URL = 'http://localhost:8080';
+// assicurati che la base contenga '/api' anche se VITE_API_BASE è impostata senza suffisso
+const rawBase = import.meta.env.VITE_API_BASE || 'http://localhost:3001';
+const API_BASE_URL = (rawBase.replace(/\/$/, '') + '/api').replace(/\/$/, '');
 
 export interface LoginRequest {
   email: string;
@@ -59,18 +61,23 @@ class ApiService {
   }
 
   async signup(data: SignupRequest): Promise<Response> {
-    const response = await fetch(`${API_BASE_URL}/auth/signup`, {
-      method: 'POST',
-      headers: this.getHeaders(),
-      body: JSON.stringify(data),
-    });
+    try {
+        const response = await fetch(`${API_BASE_URL}/auth/signup`, {
+            method: 'POST',
+            headers: this.getHeaders(),
+            body: JSON.stringify(data),
+        });
 
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(error || 'Signup failed');
+        if (!response.ok) {
+            const error = await response.text();
+            throw new Error(`Signup failed: ${error}`);
+        }
+
+        return response;
+    } catch (error) {
+        console.error('Error during signup:', error);
+        throw new Error('Signup request failed. Please check your connection and try again.');
     }
-
-    return response;
   }
 
   async getCurrentUser(token: string) {
@@ -173,3 +180,4 @@ class ApiService {
 }
 
 export const apiService = new ApiService();
+export const API_BASE = API_BASE_URL;

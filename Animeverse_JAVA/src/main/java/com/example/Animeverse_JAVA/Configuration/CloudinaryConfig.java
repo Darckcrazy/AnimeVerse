@@ -1,6 +1,5 @@
 package com.example.Animeverse_JAVA.Configuration;
 
-import com.example.Animeverse_JAVA.Exceptions.CloudinaryException;
 import com.cloudinary.Cloudinary;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -12,24 +11,25 @@ import java.util.Map;
 @Configuration
 public class CloudinaryConfig {
 
-    @Bean
-    public Cloudinary getAvatarImage(@Value("${cloudinary.name}") String cloudname, @Value("${cloudinary.key}") String apiKey, @Value("${cloudinary.secret}") String apiSecret) {
+    @Value("${cloudinary.cloud_name:}")
+    private String cloudName;
 
-        // Eseguo un controllo sui dati
-        try {
-            System.out.println("| Cloudname: " + cloudname);
-            System.out.println("| ApiKey: " + apiKey);
-            System.out.println("| ApiSecret: " + apiSecret);
+    @Value("${cloudinary.api_key:}")
+    private String apiKey;
 
-        } catch (CloudinaryException ex) {
-            System.out.println("Attenzione, alcuni dati di Cloudinary non sono stati caricati correttamente");
-        }
+    @Value("${cloudinary.api_secret:}")
+    private String apiSecret;
 
+    @Bean("getAvatarImage")
+    public Cloudinary getAvatarImage() {
         Map<String, String> config = new HashMap<>();
-        config.put("cloud_name", cloudname);
-        config.put("api_key", apiKey);
-        config.put("api_secret", apiSecret);
+        // usa le chiavi standard attese dalla libreria Cloudinary
+        if (cloudName != null && !cloudName.isEmpty())
+            config.put("cloud_name", cloudName);
+        if (apiKey != null && !apiKey.isEmpty())
+            config.put("api_key", apiKey);
+        if (apiSecret != null && !apiSecret.isEmpty())
+            config.put("api_secret", apiSecret);
         return new Cloudinary(config);
-
     }
 }

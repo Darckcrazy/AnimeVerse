@@ -16,40 +16,36 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/auth")
+@RequestMapping("/api/auth")
 public class AuthController {
 
-    @Autowired
-    private AuthenticationManager authenticationManager;
+        @Autowired
+        private AuthenticationManager authenticationManager;
 
-    @Autowired
-    private JwtTokenProvider tokenProvider;
+        @Autowired
+        private JwtTokenProvider tokenProvider;
 
-    @Autowired
-    private UtentiService utentiService;
+        @Autowired
+        private UtentiService utentiService;
 
-    @PostMapping("/signup")
-    public ResponseEntity<Utente> signup(@RequestBody RegisterDTO registerDTO) {
-        Utente newUtente = this.utentiService.saveUtenti(
-                new UtenteDTO(
-                        registerDTO.username(),
-                        registerDTO.email(),
-                        registerDTO.password()
-                )
-        );
-        return new ResponseEntity<>(newUtente, HttpStatus.CREATED);
-    }
+        @PostMapping("/register")
+        public ResponseEntity<Utente> signup(@RequestBody RegisterDTO registerDTO) {
+                Utente newUtente = this.utentiService.saveUtenti(
+                                new UtenteDTO(
+                                                registerDTO.username(),
+                                                registerDTO.email(),
+                                                registerDTO.password()));
+                return new ResponseEntity<>(newUtente, HttpStatus.CREATED);
+        }
 
-    @PostMapping("/login")
-    public ResponseEntity<AuthResponseDTO> login(@RequestBody LoginDTO loginDTO) {
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        loginDTO.email(),
-                        loginDTO.password()
-                )
-        );
+        @PostMapping("/login")
+        public ResponseEntity<AuthResponseDTO> login(@RequestBody LoginDTO loginDTO) {
+                Authentication authentication = authenticationManager.authenticate(
+                                new UsernamePasswordAuthenticationToken(
+                                                loginDTO.email(),
+                                                loginDTO.password()));
 
-        String token = tokenProvider.generateToken(authentication);
-        return ResponseEntity.ok(new AuthResponseDTO(token, "Bearer"));
-    }
+                String token = tokenProvider.generateToken(authentication);
+                return ResponseEntity.ok(new AuthResponseDTO(token, "Bearer"));
+        }
 }
