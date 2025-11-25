@@ -1,6 +1,7 @@
 package com.example.Animeverse_JAVA.Entities;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.*;
 import java.util.Set;
@@ -11,7 +12,7 @@ import java.util.Set;
 @Setter
 @NoArgsConstructor
 @ToString
-@JsonIgnoreProperties({})
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class Anime {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -41,6 +42,7 @@ public class Anime {
     private Integer year;
 
     @Column(name = "jikan_id")
+    @JsonProperty("mal_id")
     private Long jikanId;
 
     @ElementCollection(fetch = FetchType.EAGER)

@@ -3,27 +3,35 @@ package com.example.Animeverse_JAVA.Controllers;
 import com.example.Animeverse_JAVA.Entities.Utente;
 import com.example.Animeverse_JAVA.Entities.Readlist;
 import com.example.Animeverse_JAVA.Service.ReadlistService;
+import com.example.Animeverse_JAVA.Service.UtentiService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("/readlist")
+@RequestMapping("/api/readlist")
 public class ReadlistController {
 
     @Autowired
     private ReadlistService readlistService;
 
+    @Autowired
+    private UtentiService utentiService;
+
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public Readlist addToReadlist(
-            @AuthenticationPrincipal Utente currentUtente,
             @RequestParam Long mangaId,
             @RequestParam String status) {
-        return this.readlistService.addToReadlist(currentUtente, mangaId, status);
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String email = ((UserDetails) authentication.getPrincipal()).getUsername();
+        Utente currentUser = utentiService.findUtentiByEmail(email);
+        return this.readlistService.addToReadlist(currentUser, mangaId, status);
     }
 
     @PutMapping("/{readlistId}")
@@ -45,7 +53,10 @@ public class ReadlistController {
     }
 
     @GetMapping("/me")
-    public List<Readlist> getMyReadlist(@AuthenticationPrincipal Utente currentUtente) {
-        return this.readlistService.getUserReadlist(currentUtente.getUtenteId());
+    public List<Readlist> getMyReadlist() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String email = ((UserDetails) authentication.getPrincipal()).getUsername();
+        Utente currentUser = utentiService.findUtentiByEmail(email);
+        return this.readlistService.getUserReadlist(currentUser.getUtenteId());
     }
 }

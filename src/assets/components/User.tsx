@@ -1,5 +1,5 @@
-import { useState, useEffect, ChangeEvent } from 'react';
-import { useList } from '../hooks/useList';
+import { useState, useEffect } from 'react';
+import type { ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuthContext';
 import './User.css';
@@ -7,28 +7,13 @@ import PersonalizedRecommendations from './PersonalizedRecommendations';
 
 export default function User() {
   const { isLoggedIn, user, logout, token, setUser } = useAuth();
-  const [activeTab, setActiveTab] = useState<'collection' | 'lists' | 'activity' | 'preferences'>('collection');
+  const [activeTab, setActiveTab] = useState<'collection' | 'activity' | 'preferences'>('collection');
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [favoriteGenres, setFavoriteGenres] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const navigate = useNavigate();
-
-  const {
-    watchlist,
-    readlist,
-    loading: listLoading,
-    error: listError,
-    addToWatchlist,
-    removeFromWatchlist,
-    updateWatchlistStatus,
-    addToReadlist,
-    removeFromReadlist,
-    updateReadlistStatus,
-    isInWatchlist,
-    isInReadlist
-  } = useList();
 
   useEffect(() => {
     if (user?.favoriteGenres) setFavoriteGenres(user.favoriteGenres);
@@ -83,7 +68,7 @@ export default function User() {
     setError(null);
 
     try {
-      await fetch(`${(process as any).env.REACT_APP_API_BASE_URL || 'http://localhost:8080'}/utenti/me`, {
+      await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/utenti/me`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -117,7 +102,7 @@ export default function User() {
       const formData = new FormData();
       formData.append('avatarUrl', avatarFile);
 
-      const response = await fetch(`${(process as any).env.REACT_APP_API_BASE_URL || 'http://localhost:8080'}/utenti/me/avatarUrl`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/utenti/me/avatarUrl`, {
         method: 'PATCH',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -137,41 +122,6 @@ export default function User() {
     }
   };
 
-  const handleRemoveFromWatchlist = async (watchlistId: number) => {
-    if (!token) return;
-    try {
-      await removeFromWatchlist(token, watchlistId);
-    } catch (e) {
-      if (e instanceof Error) setError(e.message);
-    }
-  };
-
-  const handleRemoveFromReadlist = async (readlistId: number) => {
-    if (!token) return;
-    try {
-      await removeFromReadlist(token, readlistId);
-    } catch (e) {
-      if (e instanceof Error) setError(e.message);
-    }
-  };
-
-  const handleWatchlistStatusChange = async (watchlistId: number, status: string) => {
-    if (!token) return;
-    try {
-      await updateWatchlistStatus(token, watchlistId, status);
-    } catch (e) {
-      if (e instanceof Error) setError(e.message);
-    }
-  };
-
-  const handleReadlistStatusChange = async (readlistId: number, status: string) => {
-    if (!token) return;
-    try {
-      await updateReadlistStatus(token, readlistId, status);
-    } catch (e) {
-      if (e instanceof Error) setError(e.message);
-    }
-  };
 
   return (
     <main className="av-user-page">
@@ -185,7 +135,16 @@ export default function User() {
               ) : (
                 <i className="bi bi-person-fill"></i>
               )}
-              <input type="file" accept="image/jpeg,image/png" onChange={handleAvatarChange} />
+              <input 
+                type="file" 
+                accept="image/jpeg,image/png" 
+                onChange={handleAvatarChange} 
+                className="av-avatar-upload"
+                id="avatar-upload"
+              />
+              <label htmlFor="avatar-upload" className="av-avatar-upload-label">
+                <i className="bi bi-camera"></i>
+              </label>
               {avatarFile && (
                 <button className="av-btn av-btn--small" onClick={handleAvatarUpload} disabled={loading}>
                   Upload Avatar
@@ -204,9 +163,6 @@ export default function User() {
           <button className={`av-tab-btn ${activeTab === 'collection' ? 'active' : ''}`} onClick={() => setActiveTab('collection')}>
             Collection
           </button>
-          <button className={`av-tab-btn ${activeTab === 'lists' ? 'active' : ''}`} onClick={() => setActiveTab('lists')}>
-            Watchlist / Readlist
-          </button>
           <button className={`av-tab-btn ${activeTab === 'activity' ? 'active' : ''}`} onClick={() => setActiveTab('activity')}>
             Activity
           </button>
@@ -222,57 +178,6 @@ export default function User() {
           </section>
         )}
 
-        {activeTab === 'lists' && (
-          <section className="av-user-lists">
-            <h2>Watchlist</h2>
-            {listLoading && <p>Loading watchlist...</p>}
-            {listError && <p className="av-error">{listError}</p>}
-            {watchlist.length === 0 && !listLoading && <p>No items in the watchlist.</p>}
-            <ul className="av-item-list">
-              {watchlist.map((item) => (
-                <li key={item.watchlistId} className="av-item">
-                  <span>{item.animeTitolo}</span>
-                  <select
-                    value={item.status}
-                    onChange={(e) => handleWatchlistStatusChange(item.watchlistId, e.target.value)}
-                  >
-                    <option value="Plan to Watch">Plan to Watch</option>
-                    <option value="Watching">Watching</option>
-                    <option value="Completed">Completed</option>
-                    <option value="Dropped">Dropped</option>
-                  </select>
-                  <button className="av-btn av-btn--small av-btn--danger" onClick={() => handleRemoveFromWatchlist(item.watchlistId)}>
-                    Remove
-                  </button>
-                </li>
-              ))}
-            </ul>
-
-            <h2>Readlist</h2>
-            {listLoading && <p>Loading readlist...</p>}
-            {listError && <p className="av-error">{listError}</p>}
-            {readlist.length === 0 && !listLoading && <p>No items in the readlist.</p>}
-            <ul className="av-item-list">
-              {readlist.map((item) => (
-                <li key={item.readlistId} className="av-item">
-                  <span>{item.mangaTitolo}</span>
-                  <select
-                    value={item.status}
-                    onChange={(e) => handleReadlistStatusChange(item.readlistId, e.target.value)}
-                  >
-                    <option value="Plan to Read">Plan to Read</option>
-                    <option value="Reading">Reading</option>
-                    <option value="Completed">Completed</option>
-                    <option value="Dropped">Dropped</option>
-                  </select>
-                  <button className="av-btn av-btn--small av-btn--danger" onClick={() => handleRemoveFromReadlist(item.readlistId)}>
-                    Remove
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
 
         {activeTab === 'activity' && (
           <section className="av-user-activity">

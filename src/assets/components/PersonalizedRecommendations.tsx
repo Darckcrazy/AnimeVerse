@@ -11,7 +11,7 @@ type Anime = {
   year?: number;
 };
 
-const API_BASE_URL = 'http://localhost:8080';
+const API_BASE_URL = 'http://localhost:3001/api/utenti';
 
 export default function PersonalizedRecommendations() {
   const authContext = useContext(AuthContext);
@@ -32,21 +32,38 @@ export default function PersonalizedRecommendations() {
     const fetchRecommendations = async () => {
       setLoading(true);
       setError(null);
+      console.log('Inizio fetch delle raccomandazioni...');
+      console.log('URL:', `${API_BASE_URL}/me/recommendations`);
+      
       try {
-        const response = await fetch(`${API_BASE_URL}/utenti/me/recommendations`, {
+        const response = await fetch(`${API_BASE_URL}/me/recommendations`, {
           headers: {
-            Authorization: `Bearer ${token}`,
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
           },
           signal: controller.signal,
         });
+        
+        console.log('Risposta ricevuta, status:', response.status);
+        
         if (!response.ok) {
-          throw new Error(`Failed to fetch recommendations: ${response.statusText}`);
+          const errorText = await response.text();
+          console.error('Errore nella risposta:', errorText);
+          throw new Error(`Errore ${response.status}: ${response.statusText}\n${errorText}`);
         }
+        
         const data = await response.json();
+        console.log('Dati ricevuti:', data);
         setRecommendations(data);
       } catch (err) {
-        if (err instanceof Error) setError(err.message);
+        console.error('Errore durante il fetch:', err);
+        if (err instanceof Error) {
+          setError(`Errore: ${err.message}`);
+        } else {
+          setError('Si è verificato un errore sconosciuto');
+        }
       } finally {
+        console.log('Fetch completato');
         setLoading(false);
       }
     };

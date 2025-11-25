@@ -53,13 +53,17 @@ public class SecurityConfig {
                 .and()
                 .csrf().disable() // disabilita CSRF per API REST (dev)
                 .authorizeHttpRequests(authz -> authz
-                        .requestMatchers(HttpMethod.POST, "/auth/signup").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/anime/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/manga/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/review/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/rating/**").permitAll()
-                        .requestMatchers("/api/auth/**", "/api/trending", "/api/recommendations/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/register").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/anime/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/manga/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/review/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/rating/**").permitAll()
+                        .requestMatchers("/api/trending", "/api/recommendations/**").permitAll()
+                        // Allow authenticated access to user-specific endpoints
+                        .requestMatchers("/api/utenti/me").authenticated()
+                        .requestMatchers("/api/watchlist/me").authenticated()
+                        .requestMatchers("/api/readlist/me").authenticated()
                         .anyRequest().authenticated())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 

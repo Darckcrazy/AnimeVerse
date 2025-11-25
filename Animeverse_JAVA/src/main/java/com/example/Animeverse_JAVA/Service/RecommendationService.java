@@ -3,67 +3,143 @@ package com.example.Animeverse_JAVA.Service;
 import com.example.Animeverse_JAVA.Entities.Anime;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.type.TypeFactory;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
+@Slf4j
 public class RecommendationService {
+
+        @Value("${server.port:3001}")
+        private String serverPort;
+
+        @Value("${jwt.secret:defaultSecretKey}")
+        private String jwtSecret;
 
         @Autowired
         private RestTemplate restTemplate;
 
-        public List<Map<String, Object>> recommendForUser(Long userId, int limit) {
+        private final ObjectMapper objectMapper = new ObjectMapper();
+
+        public List<Anime> getRecommendationsByUser(Long userId) {
+                if (userId == null) {
+                        log.error("ID utente non valido: null");
+                        throw new IllegalArgumentException("ID utente non valido");
+                }
+
                 try {
-                        String userUrl = "http://localhost:8080/api/utente/" + userId;
-                        ObjectMapper mapper = new ObjectMapper();
-                        String userResp = restTemplate.getForObject(userUrl, String.class);
-                        JsonNode userNode = mapper.readTree(userResp == null ? "{}" : userResp);
-                        List<String> genres = new ArrayList<>();
-                        if (userNode.has("preferenze")) {
-                                userNode.get("preferenze").forEach(n -> genres.add(n.asText()));
-                        }
-                        LinkedHashSet<Map<String, Object>> results = new LinkedHashSet<>();
-                        for (String g : genres) {
-                                String q = "https://api.jikan.moe/v4/anime?q=" + java.net.URLEncoder.encode(g, "UTF-8")
-                                                + "&limit=5";
-                                String resp = restTemplate.getForObject(q, String.class);
-                                if (resp == null)
-                                        continue;
-                                JsonNode root = mapper.readTree(resp);
-                                if (root.has("data")) {
-                                        for (JsonNode item : root.get("data")) {
-                                                Map<String, Object> map = mapper.convertValue(item, Map.class);
-                                                results.add(map);
-                                                if (results.size() >= limit)
-                                                        break;
+                        String url = String.format("http://localhost:%s/api/utenti/%d/recommendations", serverPort,
+                                        userId);
+                        log.debug("Fetching recommendations from: {}", url);
+
+                        HttpHeaders headers = new HttpHeaders();
+                        headers.setContentType(MediaType.APPLICATION_JSON);
+                        // In a real application, get the token from the security context
+                        // String token =
+                        // SecurityContextHolder.getContext().getAuthentication().getCredentials().toString();
+                        // headers.setBearerAuth(token);
+
+                        HttpEntity<?> entity = new HttpEntity<>(headers);
+
+                        try {
+                                ResponseEntity<String> response = restTemplate.exchange(
+                                                url,
+                                                HttpMethod.GET,
+                                                entity,
+                                                String.class);
+
+                                if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
+                                        JsonNode rootNode = objectMapper.readTree(response.getBody());
+                                        if (rootNode.isArray()) {
+                                                return objectMapper.convertValue(rootNode,
+                                                                TypeFactory.defaultInstance().constructCollectionType(
+                                                                                List.class, Anime.class));
                                         }
                                 }
-                                if (results.size() >= limit)
-                                        break;
+                        } catch (Exception e) {
+                                log.warn("Error fetching recommendations from API, using default recommendations: {}",
+                                                e.getMessage());
                         }
-                        if (results.isEmpty()) {
-                                String topUrl = "https://api.jikan.moe/v4/top/anime?limit=" + limit;
-                                String resp = restTemplate.getForObject(topUrl, String.class);
-                                if (resp != null) {
-                                        JsonNode topRoot = mapper.readTree(resp);
-                                        if (topRoot.has("data")) {
-                                                for (JsonNode item : topRoot.get("data")) {
-                                                        results.add(mapper.convertValue(item, Map.class));
-                                                }
-                                        }
-                                }
-                        }
-                        return results.stream().limit(limit).collect(Collectors.toList());
+
+                        log.warn("Using default recommendations due to empty or invalid response");
+                        return getDefaultRecommendations(10);
+
                 } catch (Exception e) {
-                        return Collections.emptyList();
+                        log.error("Error in getRecommendationsByUser for user {}: {}", userId, e.getMessage(), e);
+                        return getDefaultRecommendations(10);
                 }
         }
 
-    public List<Anime> getRecommendationsByUser(Long utenteId) {
-        return List.of();
-    }
+        private List<Anime> getDefaultRecommendations(int limit) {
+                try {
+                        String apiUrl = "https://api.jikan.moe/v4/top/anime?limit=" + limit;
+                        log.debug("Fetching default recommendations from: {}", apiUrl);
+
+                        String apiResponse = restTemplate.getForObject(apiUrl, String.class);
+
+                        if (apiResponse != null) {
+                                JsonNode rootNode = objectMapper.readTree(apiResponse);
+                                JsonNode dataNode = rootNode.path("data");
+
+                                List<Anime> recommendations = new ArrayList<>();
+                                for (JsonNode item : dataNode) {
+                                        try {
+                                                Anime anime = new Anime();
+                                                anime.setJikanId(item.path("mal_id").asLong());
+                                                anime.setTitle(item.path("title").asText());
+                                                anime.setSynopsis(item.path("synopsis").asText());
+                                                anime.setImageUrl(item.path("images").path("jpg").path("image_url")
+                                                                .asText());
+                                                anime.setEpisodes(item.path("episodes").asInt());
+                                                anime.setStatus(item.path("status").asText());
+                                                anime.setScore(item.path("score").asDouble());
+                                                anime.setYear(item.path("year").asInt());
+
+                                                Set<String> genres = new HashSet<>();
+                                                item.path("genres").forEach(
+                                                                genre -> genres.add(genre.path("name").asText()));
+                                                anime.setGenres(genres);
+
+                                                recommendations.add(anime);
+                                        } catch (Exception e) {
+                                                log.warn("Error parsing anime item: {}", e.getMessage());
+                                        }
+                                }
+                                return recommendations;
+                        }
+                } catch (Exception e) {
+                        log.error("Error fetching default recommendations: {}", e.getMessage(), e);
+                }
+                return Collections.emptyList();
+        }
+
+        public List<Map<String, Object>> recommendForUser(Long userId, int limit) {
+                try {
+                        List<Anime> animeList = getRecommendationsByUser(userId);
+                        return animeList.stream()
+                                        .limit(limit)
+                                        .map(anime -> {
+                                                Map<String, Object> map = new HashMap<>();
+                                                map.put("animeId", anime.getJikanId());
+                                                map.put("title", anime.getTitle());
+                                                map.put("imageUrl", anime.getImageUrl());
+                                                map.put("score", anime.getScore());
+                                                map.put("year", anime.getYear());
+                                                map.put("genres", anime.getGenres());
+                                                return map;
+                                        })
+                                        .collect(Collectors.toList());
+                } catch (Exception e) {
+                        log.error("Error in recommendForUser: {}", e.getMessage(), e);
+                        return Collections.emptyList();
+                }
+        }
 }

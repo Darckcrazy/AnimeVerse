@@ -9,14 +9,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("/utenti")
+@RequestMapping("/api/utenti")
 public class UtenteController {
 
     @Autowired
@@ -28,38 +30,48 @@ public class UtenteController {
     // endpoint "/me"
     // GET mio profilo
     @GetMapping("/me")
-    public Utente getMyProfile(@AuthenticationPrincipal Utente currentUtente) {
-        return currentUtente;
+    public Utente getMyProfile() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String email = ((UserDetails) authentication.getPrincipal()).getUsername();
+        return utentiService.findUtentiByEmail(email);
     }
 
     // PUT mio profilo
     @PutMapping("/me")
-    public Utente getMyProfileAndUpdate(@AuthenticationPrincipal Utente currentUtente,
-            @RequestBody UtenteDTO bodyUtente) {
+    public Utente getMyProfileAndUpdate(@RequestBody UtenteDTO bodyUtente) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String email = ((UserDetails) authentication.getPrincipal()).getUsername();
+        Utente currentUser = utentiService.findUtentiByEmail(email);
         // Note: favoriteGenres handling is done by service using DTO
-        return this.utentiService.findUtentiByIdAndUpdate(currentUtente.getUtenteId(), bodyUtente);
+        return this.utentiService.findUtentiByIdAndUpdate(currentUser.getUtenteId(), bodyUtente);
     }
 
     // GET personalized recommendations for current user
     @GetMapping("/me/recommendations")
-    public List<Anime> getMyRecommendations(@AuthenticationPrincipal Utente currentUtente) {
-        return this.recommendationService.getRecommendationsByUser(currentUtente.getUtenteId());
+    public List<Anime> getMyRecommendations() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String email = ((UserDetails) authentication.getPrincipal()).getUsername();
+        Utente currentUser = utentiService.findUtentiByEmail(email);
+        return this.recommendationService.getRecommendationsByUser(currentUser.getUtenteId());
     }
 
     // PATCH dell'immagine profilo
     @PatchMapping("/me/avatarUrl")
-    public Utente updateMyAvatar(@AuthenticationPrincipal Utente currentUtente,
-            @RequestParam("avatarUrl") MultipartFile file) {
-        System.out.println("| Nome del file: " + file.getName());
-        System.out.println("| Dimensione del file: " + file.getSize());
-        return this.utentiService.uploadAvatarProfile(file, currentUtente.getUtenteId());
+    public Utente updateMyAvatar(@RequestParam("avatarUrl") MultipartFile file) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String email = ((UserDetails) authentication.getPrincipal()).getUsername();
+        Utente currentUser = utentiService.findUtentiByEmail(email);
+        return this.utentiService.uploadAvatarProfile(file, currentUser.getUtenteId());
     }
 
     // DELETE mio profilo
     @DeleteMapping("/me")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteMyProfile(@AuthenticationPrincipal Utente currentUtente) {
-        this.utentiService.findUtentiByIdAndDelete(currentUtente.getUtenteId());
+    public void deleteMyProfile() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String email = ((UserDetails) authentication.getPrincipal()).getUsername();
+        Utente currentUser = utentiService.findUtentiByEmail(email);
+        this.utentiService.findUtentiByIdAndDelete(currentUser.getUtenteId());
     }
 
     // GET utenti (paginato)
