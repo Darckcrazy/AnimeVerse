@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useLocation } from 'react-router-dom';
 import './Anime.css';
 import { useAuth } from '../hooks/useAuthContext';
 import { apiService } from '../services/api';
@@ -52,10 +52,30 @@ type JikanEpisodeApi = {
 
 export default function AnimeDetail() {
   const { id } = useParams();
+  const location = useLocation();
   const { token } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [anime, setAnime] = useState<AnimeDetailData | null>(null);
+  const [anime, setAnime] = useState<AnimeDetailData | null>(() => {
+    // Initialize with data from location state if available
+    if (location.state?.item) {
+      return {
+        mal_id: location.state.item.id || 0,
+        title: location.state.item.title || '',
+        title_english: location.state.item.title,
+        synopsis: location.state.item.synopsis,
+        episodes: location.state.item.episodes || location.state.item.totalEpisodes,
+        images: {
+          jpg: { image_url: location.state.item.image || '' },
+          webp: { image_url: location.state.item.image || '' }
+        },
+        score: location.state.item.score,
+        year: location.state.item.year,
+        type: location.state.item.type
+      };
+    }
+    return null;
+  });
   const [episodes, setEpisodes] = useState<EpisodeItem[]>([]);
   const [streaming, setStreaming] = useState<Array<{ name: string; url: string }>>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -64,58 +84,107 @@ export default function AnimeDetail() {
 
   useEffect(() => {
     if (!id) return;
+    
     const controller = new AbortController();
+    const API_BASE_URL = 'https://api.jikan.moe/v4';
+    
     const run = async () => {
-      setLoading(true);
+      // Only show loading if we don't have initial data from location state
+      if (!anime) {
+        setLoading(true);
+      }
       setError(null);
+      
       try {
-        // Details (full)
-        const detailRes = await fetch(`https://api.jikan.moe/v4/anime/${id}/full`, {
-          signal: controller.signal,
-        });
-        if (!detailRes.ok) throw new Error(`HTTP ${detailRes.status}`);
-        const detailJson = await detailRes.json();
-        setAnime(detailJson?.data ?? null);
+        // Only fetch if we don't have data from location state or if we need to refresh
+        if (!anime || !location.state?.fromList) {
+          try {
+            const detailRes = await fetch(`${API_BASE_URL}/anime/${id}/full`, {
+              signal: controller.signal,
+              headers: {
+                'Content-Type': 'application/json',
+              },
+            });
+            
+            if (!detailRes.ok) {
+              throw new Error(`Failed to load anime details: ${detailRes.status} ${detailRes.statusText}`);
+            }
+            
+            const detailJson = await detailRes.json();
+            setAnime(detailJson?.data ?? null);
+          } catch (err) {
+            console.error('Error fetching anime details:', err);
+            setError('Failed to load anime details. Please try again later.');
+            return;
+          }
+        }
 
         // Episodes list (videos/episodes)
-        const epRes = await fetch(`https://api.jikan.moe/v4/anime/${id}/videos/episodes`, {
-          signal: controller.signal,
-        });
-        if (epRes.ok) {
-          const epJson = await epRes.json();
-          const items: EpisodeItem[] = Array.isArray(epJson?.data?.episodes)
-            ? (epJson.data.episodes as JikanEpisodeApi[]).map((e) => ({
-                mal_id: Number(e.mal_id ?? e.episode ?? 0),
-                title: e.title ?? `Episode ${e.episode}`,
-                aired: e.aired ?? null,
-                score: e.score ?? null,
-                episode: e.episode ?? 0,
-                url: e.url ?? '',
-              }))
-            : [];
-          setEpisodes(items);
-        } else {
+        try {
+          const epRes = await fetch(`${API_BASE_URL}/anime/${id}/videos/episodes`, {
+            signal: controller.signal,
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          });
+          
+          if (epRes.status === 429) {
+            console.warn('Rate limited by Jikan API for episodes');
+            // Don't show error to user for rate limiting
+          } else if (epRes.ok) {
+            const epJson = await epRes.json();
+            const items: EpisodeItem[] = Array.isArray(epJson?.data?.episodes)
+              ? (epJson.data.episodes as JikanEpisodeApi[]).map((e) => ({
+                  mal_id: Number(e.mal_id ?? e.episode ?? 0),
+                  title: e.title ?? `Episode ${e.episode}`,
+                  aired: e.aired ?? null,
+                  score: e.score ?? null,
+                  episode: e.episode ?? 0,
+                  url: e.url ?? '',
+                }))
+              : [];
+            setEpisodes(items);
+          } else {
+            console.warn('Failed to fetch episodes, setting empty array. Status:', epRes.status);
+            setEpisodes([]);
+          }
+        } catch (error) {
+          console.error('Error fetching episodes:', error);
+          // Don't show error to user for episodes as they might be missing for some anime
           setEpisodes([]);
         }
 
         // Streaming providers (if any)
         try {
-          const streamRes = await fetch(`https://api.jikan.moe/v4/anime/${id}/streaming`, {
+          const streamRes = await fetch(`${API_BASE_URL}/anime/${id}/streaming`, {
             signal: controller.signal,
+            headers: {
+              'Content-Type': 'application/json',
+            },
           });
-          if (streamRes.ok) {
+          
+          if (streamRes.status === 429) {
+            console.warn('Rate limited by Jikan API for streaming data');
+            // Don't show error to user for rate limiting
+          } else if (streamRes.ok) {
             const sJson = await streamRes.json();
             type JikanStreamingApi = { name?: string; url?: string };
             const items: Array<{ name: string; url: string }> = Array.isArray(sJson?.data)
               ? (sJson.data as JikanStreamingApi[])
                   .filter((s) => Boolean(s?.name) && Boolean(s?.url))
-                  .map((s) => ({ name: String(s.name), url: String(s.url) }))
+                  .map((s) => ({
+                      name: String(s.name || 'Unknown'), 
+                      url: String(s.url || '#')
+                  }))
               : [];
             setStreaming(items);
           } else {
+            console.warn('Failed to fetch streaming data, setting empty array. Status:', streamRes.status);
             setStreaming([]);
           }
-        } catch {
+        } catch (error) {
+          console.error('Error fetching streaming data:', error);
+          // Don't show error to user for streaming as it might not be available for all anime
           setStreaming([]);
         }
 

@@ -6,6 +6,54 @@ import { useWatchlist } from '../hooks/useWatchlist';
 import { useAuth } from '../hooks/useAuthContext';
 import { apiService } from '../services/api';
 
+// Cache for API responses
+const apiCache = new Map();
+const CACHE_EXPIRY = 5 * 60 * 1000; // 5 minutes
+
+// Rate limiting variables
+let lastRequestTime = 0;
+const MIN_REQUEST_INTERVAL = 1000; // 1 second between requests
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 1000; // 1 second initial delay, will increase with retries
+
+// Helper function to delay execution
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Enhanced fetch with retry logic
+async function fetchWithRetry(url: string, options: RequestInit = {}, retries = MAX_RETRIES): Promise<Response> {
+  try {
+    // Implement rate limiting
+    const now = Date.now();
+    const timeSinceLastRequest = now - lastRequestTime;
+    
+    if (timeSinceLastRequest < MIN_REQUEST_INTERVAL) {
+      await delay(MIN_REQUEST_INTERVAL - timeSinceLastRequest);
+    }
+
+    const response = await fetch(url, options);
+    lastRequestTime = Date.now();
+
+    if (response.status === 429) {
+      // If rate limited, wait and retry with exponential backoff
+      const retryAfter = parseInt(response.headers.get('Retry-After') || '1', 10) * 1000 || 
+                         Math.min(1000 * Math.pow(2, retries), 30000); // max 30s delay
+      
+      if (retries > 0) {
+        await delay(retryAfter);
+        return fetchWithRetry(url, options, retries - 1);
+      }
+    }
+
+    return response;
+  } catch (error) {
+    if (retries > 0) {
+      await delay(RETRY_DELAY * Math.pow(2, MAX_RETRIES - retries));
+      return fetchWithRetry(url, options, retries - 1);
+    }
+    throw error;
+  }
+}
+
 type Genre = {
   mal_id: number;
   name: string;
@@ -49,22 +97,40 @@ export default function Anime() {
     return () => clearTimeout(id);
   }, [query]);
 
-  // reset lista quando cambia la query calcolata
+  // reset list when the computed query changes
   useEffect(() => {
     setResults([]);
     setPage(1);
     setHasMore(true);
-  }, [debounced]);
+  }, [debounced, selectedGenre, selectedYear, selectedSeason]);
 
   useEffect(() => {
     const controller = new AbortController();
     const run = async () => {
+      // Skip if we're already loading or if we don't have more data to load
+      if (loading || (!hasMore && page > 1)) return;
+      
       setError(null);
       setLoading(true);
+      
       try {
         const limit = 24;
         const hasFilters = selectedGenre || selectedYear || selectedSeason;
         const query = debounced || (hasFilters ? ' ' : '');
+        
+        // Create a cache key based on the current query and filters
+        const cacheKey = `anime_${query}_${selectedGenre}_${selectedYear}_${selectedSeason}_${page}`;
+        const cachedData = apiCache.get(cacheKey);
+        const isCacheValid = cachedData && (Date.now() - cachedData.timestamp < CACHE_EXPIRY);
+        
+        // Return cached data if it exists and is still valid
+        if (isCacheValid) {
+          const { data } = cachedData;
+          setResults(prev => [...new Map([...prev, ...data].map(item => [item.mal_id, item])).values()]);
+          setHasMore(data.length === limit);
+          setLoading(false);
+          return;
+        }
         
         // Build query parameters
         const params = new URLSearchParams();
@@ -100,24 +166,35 @@ export default function Anime() {
         const baseUrl = query ? '/jikan/anime' : '/jikan/top/anime';
         const url = `${baseUrl}?${params.toString()}`;
         
-        console.log('Fetching from:', url);
-        
-        const res = await fetch(url, { 
-          signal: controller.signal,
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
-        
-        if (!res.ok) {
-          const errorData = await res.json().catch(() => ({}));
-          console.error('API Error:', errorData);
-          throw new Error(errorData.message || `HTTP ${res.status}`);
+        try {
+          const response = await fetchWithRetry(url, { 
+            signal: controller.signal,
+            headers: {
+              'Content-Type': 'application/json',
+            }
+          });
+
+          const data = await response.json();
+          const animeList = data.data || [];
+          
+          // Cache the response
+          apiCache.set(cacheKey, {
+            data: animeList,
+            timestamp: Date.now()
+          });
+          
+          setHasMore(Boolean(data?.pagination?.has_next_page));
+          setResults((prev) => (page === 1 ? animeList : [...prev, ...animeList]));
+        } catch (error) {
+          if (error instanceof Error) {
+            if (error.message.includes('429')) {
+              setError('Hai superato il limite di richieste. Attendi un momento e riprova.');
+            } else {
+              setError('Errore durante il caricamento dei dati. Riprova più tardi.');
+            }
+          }
+          console.error('Fetch error:', error);
         }
-        const json = await res.json();
-        const newData: JikanAnime[] = Array.isArray(json?.data) ? json.data : [];
-        setHasMore(Boolean(json?.pagination?.has_next_page));
-        setResults((prev) => (page === 1 ? newData : [...prev, ...newData]));
       } catch (e: unknown) {
         if (e instanceof DOMException && e.name === 'AbortError') return;
         setError('Errore durante la ricerca. Riprova.');
@@ -127,44 +204,42 @@ export default function Anime() {
     };
     run();
     return () => controller.abort();
-  }, [debounced, page, selectedGenre, selectedYear, selectedSeason]);
+  }, [debounced, page, selectedGenre, selectedYear, selectedSeason, hasMore, loading]);
 
-  // Remove unused variables
-  // const [debouncedGenre, setDebouncedGenre] = useState<number | null>(null);
-  // const [debouncedYear, setDebouncedYear] = useState<number | null>(null);
-  // const [debouncedSeason, setDebouncedSeason] = useState<string | null>(null);
-  // const lastRequestTimeRef = useRef(0);
-  
-  // Remove unused REQUEST_DELAY_MS
-  // const REQUEST_DELAY_MS = 500;
-
+  // Load genres on mount
   useEffect(() => {
-    const controller = new AbortController();
-    const run = async () => {
+    const fetchGenres = async () => {
+      const cacheKey = 'anime_genres';
+      const cachedGenres = apiCache.get(cacheKey);
+      
+      if (cachedGenres && (Date.now() - cachedGenres.timestamp < CACHE_EXPIRY * 24)) { // Longer cache for genres (24h)
+        setGenres(cachedGenres.data);
+        return;
+      }
+      
       try {
-        console.log('Fetching genres...');
-        const res = await fetch('/jikan/genres/anime', { 
-          signal: controller.signal,
-          headers: {
-            'Content-Type': 'application/json',
-          },
+        const response = await fetchWithRetry('/jikan/genres/anime');
+        if (!response.ok) throw new Error('Failed to fetch genres');
+        const data = await response.json();
+        const genresData = data.data || [];
+        
+        // Cache the genres
+        apiCache.set(cacheKey, {
+          data: genresData,
+          timestamp: Date.now()
         });
         
-        if (!res.ok) {
-          console.error('Failed to fetch genres:', res.status);
-          return;
+        setGenres(genresData);
+      } catch (err) {
+        console.error('Error fetching genres:', err);
+        // If we have cached data, use it even if it's expired
+        if (cachedGenres) {
+          setGenres(cachedGenres.data);
         }
-        
-        const json = await res.json();
-        console.log('Genres response:', json);
-        setGenres(Array.isArray(json?.data) ? json.data : []);
-      } catch (error) {
-        console.error('Error fetching genres:', error);
       }
     };
     
-    run();
-    return () => controller.abort();
+    fetchGenres();
   }, []);
 
   const placeholder = useMemo(

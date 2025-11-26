@@ -40,7 +40,8 @@ export default function MangaDetail() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(`https://api.jikan.moe/v4/manga/${id}/full`, {
+        // Use the proxy endpoint instead of direct Jikan API call
+        const res = await fetch(`/jikan/manga/${id}/full`, {
           signal: controller.signal,
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -87,14 +88,12 @@ export default function MangaDetail() {
       }
       const mangaData = {
         title: manga.title,
-        image: manga.images?.webp?.image_url || manga.images?.jpg?.image_url,
-        score: manga.score || null,
-        type: 'manga',
-        year: manga.published?.prop?.from?.year || null,
-        synopsis: manga.synopsis,
-        chapters: manga.chapters || null,
-        volumes: manga.volumes || null,
-        status: 'planning' // Default status
+        imageUrl: manga.images?.webp?.image_url || manga.images?.jpg?.image_url || '',
+        score: manga.score,
+        year: manga.published?.prop?.from?.year,
+        synopsis: manga.synopsis || '',
+        chapters: manga.chapters,
+        status: 'planning' as const
       };
       await apiService.addToReadlist(token, manga.mal_id, 'planning', mangaData);
       alert("Aggiunto alla readlist");

@@ -12,31 +12,68 @@ const DEFAULT_IMAGE = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy5
 // Base item properties that are common to all list items
 interface BaseListItem {
   id: number;
-  status: string;
   title?: string;
   image?: string;
+  status: 'watching' | 'completed' | 'on-hold' | 'planning' | 'dropped';
   score?: number;
+  progress?: number;
+  type?: 'anime' | 'manga';
   synopsis?: string;
   year?: number;
-  type?: 'anime' | 'manga' | 'unknown';
-}
-
-// Type for items that don't match anime or manga types
-interface UnknownItem extends BaseListItem {
-  type: 'unknown';
-}
-
-// Base item properties that are common to both anime and manga
-interface MediaItem extends BaseListItem {
-  id: number;
-  title?: string;
-  status: string;
-  image?: string;
+  episodes?: number;
+  totalEpisodes?: number;
+  chapters?: number;
+  volumes?: number;
+  animeId?: number;
+  mangaId?: number;
+  animeTitolo?: string;
+  images?: {
+    jpg?: { image_url?: string; large_image_url?: string };
+    webp?: { image_url?: string; large_image_url?: string };
+  };
   imageUrl?: string;
-  score?: number;
-  synopsis?: string;
-  year?: number;
 }
+
+interface AnimeListItem extends BaseListItem {
+  animeId?: number;
+  anime?: {
+    id: number;
+    title: string;
+    imageUrl?: string;
+    episodes?: number;
+    score?: number;
+    year?: number;
+    synopsis?: string;
+    images?: {
+      jpg?: { image_url?: string; large_image_url?: string };
+      webp?: { image_url?: string; large_image_url?: string };
+    };
+  };
+  episodes?: number;
+  totalEpisodes?: number;
+}
+
+interface MangaListItem extends BaseListItem {
+  mangaId?: number;
+  manga?: {
+    id: number;
+    title: string;
+    imageUrl?: string;
+    chapters?: number;
+    volumes?: number;
+    score?: number;
+    year?: number;
+    synopsis?: string;
+    images?: {
+      jpg?: { image_url?: string; large_image_url?: string };
+      webp?: { image_url?: string; large_image_url?: string };
+    };
+  };
+  chapters?: number;
+  volumes?: number;
+}
+
+type UnknownItem = Partial<AnimeListItem & MangaListItem>;
 
 // Type guard to check if an item is an AnimeListItem
 function isAnimeItem(item: BaseListItem): item is AnimeListItem {
@@ -108,61 +145,56 @@ export default function Watchlist() {
   
   // Function to handle navigation to item details
   const handleItemClick = (item: AnimeListItem | MangaListItem | UnknownItem, e: React.MouseEvent) => {
-    // Don't navigate if clicking on action buttons or links
+    // Don't navigate if clicking on action buttons, links, or status dropdown
     if (
       (e.target as HTMLElement).closest('.av-btn--danger') || 
+      (e.target as HTMLElement).closest('.av-status-dropdown') ||
       (e.target as HTMLElement).tagName === 'A' ||
-      (e.target as HTMLElement).tagName === 'BUTTON'
+      (e.target as HTMLElement).tagName === 'BUTTON' ||
+      (e.target as HTMLElement).closest('button') ||
+      (e.target as HTMLElement).closest('a')
     ) {
       return;
     }
     
     // Log the item for debugging
-    console.log('Clicked item:', item);
+    console.log('Navigating to item details:', item);
     
     // Determine the item type based on the active tab
     const isManga = activeTab === 'manga';
     
-    // Log all available properties for debugging
-    console.log('Item details:', JSON.stringify(item, null, 2));
+    // Get the title, defaulting to 'Untitled' if not available
+    const title = item.title || (isManga ? 'Manga Senza Titolo' : 'Anime Senza Titolo');
     
-    if (!item.title) {
-      console.error('No title found for item:', item);
-      return;
-    }
-    
-    // Create a slug from the title (convert to lowercase, replace spaces with hyphens, remove special chars)
-    const slug = item.title
+    // Create a slug from the title
+    const slug = title
       .toLowerCase()
-      .replace(/[^\w\s-]/g, '') // Remove special characters
-      .replace(/\s+/g, '-')      // Replace spaces with hyphens
-      .replace(/-+/g, '-');       // Replace multiple hyphens with a single one
+      .replace(/[^\w\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-');
     
-    // Create a function to handle the navigation
-    const navigateToItem = () => {
-      if (isManga) {
-        console.log('Navigating to manga with slug:', slug, 'Title:', item.title);
-        navigate(`/manga/${slug}`, { 
-          state: { 
-            itemData: item,
-            fromWatchlist: true
-          },
-          replace: true 
-        });
-      } else {
-        console.log('Navigating to anime with slug:', slug, 'Title:', item.title);
-        navigate(`/anime/${slug}`, { 
-          state: { 
-            itemData: item,
-            fromWatchlist: true
-          },
-          replace: true 
-        });
-      }
+    // Prepare the item data to pass to the detail page
+    const itemData = {
+      ...item,
+      // Ensure we have the correct ID based on the item type
+      id: isManga 
+        ? (item as MangaListItem).mangaId || item.id 
+        : (item as AnimeListItem).animeId || item.id,
+      title: title,
+      type: isManga ? 'manga' : 'anime'
     };
     
-    // Call the navigation function
-    navigateToItem();
+    // Navigate to the detail page
+    const path = `/${isManga ? 'manga' : 'anime'}/${slug}`;
+    console.log(`Navigating to: ${path}`, { itemData });
+    
+    navigate(path, { 
+      state: { 
+        item: itemData,
+        fromList: true
+      },
+      replace: false // Changed from true to allow browser back navigation
+    });
   };
   const [activeTab, setActiveTab] = useState<'anime' | 'manga'>('anime');
   const [filterStatus, setFilterStatus] = useState<string>('all');

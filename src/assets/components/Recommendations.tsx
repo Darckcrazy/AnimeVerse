@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import './Recommendations.css';
 
-type JikanAnime = {
+type JikanMedia = {
   mal_id: number;
   title: string;
   images: {
@@ -12,20 +12,26 @@ type JikanAnime = {
   score?: number;
   year?: number;
   type?: string;
+  chapters?: number;
+  volumes?: number;
+  media_type?: string;
 };
 
+type MediaType = 'anime' | 'manga';
+
 export default function Recommendations() {
-  const [recommendations, setRecommendations] = useState<JikanAnime[]>([]);
+  const [recommendations, setRecommendations] = useState<JikanMedia[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'trending' | 'top'>('trending');
+  const [mediaType, setMediaType] = useState<MediaType>('anime');
 
   useEffect(() => {
     const controller = new AbortController();
     const run = async () => {
       try {
-        let url = 'https://api.jikan.moe/v4/top/anime?limit=24';
+        let url = `/jikan/top/${mediaType}?limit=24`;
         if (activeTab === 'trending') {
-          url = 'https://api.jikan.moe/v4/anime?order_by=score&sort=desc&limit=24';
+          url = `/jikan/${mediaType}?order_by=score&sort=desc&limit=24`;
         }
         
         const res = await fetch(url, {
@@ -57,7 +63,7 @@ export default function Recommendations() {
     setLoading(true);
     run();
     return () => controller.abort();
-  }, [activeTab]);
+  }, [activeTab, mediaType]);
 
   if (loading) {
     return (
@@ -82,8 +88,23 @@ export default function Recommendations() {
       <div className="av-recommendations-container container">
         <section className="av-recommendations-header">
           <h1>Raccomandazioni</h1>
-          <p>Scopri gli anime più hot del momento e i migliori di sempre</p>
+          <p>Scopri i {mediaType === 'anime' ? 'migliori anime' : 'migliori manga'} del momento</p>
         </section>
+
+        <div className="av-media-type-tabs mb-4">
+          <button 
+            className={`av-tab ${mediaType === 'anime' ? 'av-tab--active' : ''}`}
+            onClick={() => setMediaType('anime')}
+          >
+            <i className="bi bi-tv"></i> Anime
+          </button>
+          <button 
+            className={`av-tab ${mediaType === 'manga' ? 'av-tab--active' : ''}`}
+            onClick={() => setMediaType('manga')}
+          >
+            <i className="bi bi-book"></i> Manga
+          </button>
+        </div>
 
         <div className="av-recommendations-controls">
           <div className="av-tabs">
@@ -110,24 +131,33 @@ export default function Recommendations() {
           </div>
         ) : (
           <div className="av-recommendations-grid">
-            {recommendations.map((anime) => {
-              const img = anime.images?.webp?.image_url || anime.images?.jpg?.image_url || 'https://via.placeholder.com/200x300?text=Anime';
+            {recommendations.map((item) => {
+              const img = item.images?.webp?.image_url || item.images?.jpg?.image_url || `https://via.placeholder.com/200x300?text=${mediaType === 'anime' ? 'Anime' : 'Manga'}`;
+              const detailUrl = `/${mediaType}/${item.mal_id}`;
+              const type = item.type || item.media_type || (mediaType === 'anime' ? 'Anime' : 'Manga');
+              
               return (
-                <Link key={anime.mal_id} to={`/anime/${anime.mal_id}`} className="av-recommendation-card">
+                <Link key={item.mal_id} to={detailUrl} className="av-recommendation-card">
                   <div className="av-recommendation-card__image">
-                    <img src={img} alt={anime.title} loading="lazy" />
-                    {anime.score && (
+                    <img src={img} alt={item.title} loading="lazy" />
+                    {item.score && (
                       <div className="av-recommendation-card__score">
                         <i className="bi bi-star-fill"></i>
-                        <span>{anime.score.toFixed(1)}</span>
+                        <span>{item.score.toFixed(1)}</span>
                       </div>
                     )}
                   </div>
                   <div className="av-recommendation-card__content">
-                    <h3 title={anime.title}>{anime.title}</h3>
+                    <h3 title={item.title}>{item.title}</h3>
                     <div className="av-recommendation-card__meta">
-                      {anime.year && <span className="av-meta-item">{anime.year}</span>}
-                      {anime.type && <span className="av-meta-item">{anime.type}</span>}
+                      {item.year && <span className="av-meta-item">{item.year}</span>}
+                      {type && <span className="av-meta-item">{type}</span>}
+                      {mediaType === 'manga' && item.chapters && (
+                        <span className="av-meta-item">Cap. {item.chapters}</span>
+                      )}
+                      {mediaType === 'manga' && item.volumes && (
+                        <span className="av-meta-item">Vol. {item.volumes}</span>
+                      )}
                     </div>
                   </div>
                 </Link>
