@@ -12,4 +12,6 @@ public interface ReadlistRepository extends JpaRepository<Readlist, Long> {
     List<Readlist> findByUtente_UtenteId(Long utenteId);
 
     Optional<Readlist> findByUtente_UtenteIdAndManga_MangaId(Long utenteId, Long mangaId);
+
+    boolean existsByUtente_UtenteIdAndManga_MangaId(Long utenteId, Long mangaId);
 }

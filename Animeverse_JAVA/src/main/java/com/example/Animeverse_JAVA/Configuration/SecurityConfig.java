@@ -62,8 +62,14 @@ public class SecurityConfig {
                         .requestMatchers("/api/trending", "/api/recommendations/**").permitAll()
                         // Allow authenticated access to user-specific endpoints
                         .requestMatchers("/api/utenti/me").authenticated()
-                        .requestMatchers("/api/watchlist/me").authenticated()
-                        .requestMatchers("/api/readlist/me").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/watchlist/me").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/watchlist").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/watchlist/**").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/watchlist/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/readlist/me").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/readlist").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/readlist/**").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/readlist/**").authenticated()
                         .anyRequest().authenticated())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 

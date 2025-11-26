@@ -12,4 +12,6 @@ public interface WatchlistRepository extends JpaRepository<Watchlist, Long> {
     List<Watchlist> findByUtente_UtenteId(Long utenteId);
 
     Optional<Watchlist> findByUtente_UtenteIdAndAnime_AnimeId(Long utenteId, Long animeId);
+
+    boolean existsByUtente_UtenteIdAndAnime_AnimeId(Long utenteId, Long animeId);
 }

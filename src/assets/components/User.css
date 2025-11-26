@@ -270,6 +270,91 @@
   font-size: 1.5rem;
 }
 
+/* Avatar Upload Styles */
+.avatar-container {
+  position: relative;
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid var(--av-stroke);
+  margin: 0 auto 1.5rem;
+  transition: all 0.3s ease;
+}
+
+.avatar-container:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(139, 92, 246, 0.2);
+}
+
+.profile-avatar {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatar-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--av-surface);
+  color: var(--av-muted);
+  font-size: 4rem;
+}
+
+.avatar-upload-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 0.5rem;
+  display: flex;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.avatar-container:hover .avatar-upload-overlay {
+  opacity: 1;
+}
+
+.av-avatar-upload {
+  display: none;
+}
+
+.av-avatar-upload-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background-color: var(--av-primary);
+  border-radius: 50%;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 1.25rem;
+}
+
+.av-avatar-upload-label:hover {
+  background-color: #7c3aed;
+  transform: scale(1.1);
+}
+
+.avatar-filename {
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--av-muted);
+  margin-top: 0.5rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 150px;
+}
+
 .av-collections-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));

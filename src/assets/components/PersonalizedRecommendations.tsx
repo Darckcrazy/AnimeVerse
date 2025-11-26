@@ -27,9 +27,9 @@ export default function PersonalizedRecommendations() {
       setLoading(false);
       return;
     }
-    const controller = new AbortController();
 
     const fetchRecommendations = async () => {
+      const controller = new AbortController();
       setLoading(true);
       setError(null);
       console.log('Inizio fetch delle raccomandazioni...');
@@ -56,21 +56,30 @@ export default function PersonalizedRecommendations() {
         console.log('Dati ricevuti:', data);
         setRecommendations(data);
       } catch (err) {
-        console.error('Errore durante il fetch:', err);
-        if (err instanceof Error) {
-          setError(`Errore: ${err.message}`);
-        } else {
-          setError('Si è verificato un errore sconosciuto');
+        // Don't set error if the fetch was aborted
+        if (err.name !== 'AbortError') {
+          console.error('Errore durante il fetch:', err);
+          if (err instanceof Error) {
+            setError(`Errore: ${err.message}`);
+          } else {
+            setError('Si è verificato un errore sconosciuto');
+          }
         }
       } finally {
         console.log('Fetch completato');
         setLoading(false);
       }
+
+      return () => {
+        controller.abort();
+      };
     };
 
     fetchRecommendations();
+    
+    // Cleanup function for the effect
     return () => {
-      controller.abort();
+      // The AbortController's abort() is already called in the fetchRecommendations cleanup
     };
   }, [token]);
 

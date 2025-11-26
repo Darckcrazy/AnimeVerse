@@ -1,5 +1,5 @@
-import { createContext, useState, useCallback, useEffect, ReactNode } from 'react';
-import { apiService, Watchlist, Readlist } from '../services/api';
+import { createContext, useState, useCallback, useEffect, type ReactNode } from 'react';
+import { apiService, type Watchlist, type Readlist } from '../services/api';
 
 export interface ListContextType {
   watchlist: Watchlist[];
@@ -8,10 +8,11 @@ export interface ListContextType {
   error: string | null;
   fetchWatchlist: (token: string) => Promise<void>;
   fetchReadlist: (token: string) => Promise<void>;
-  addToWatchlist: (token: string, animeId: number, status: string) => Promise<void>;
+  refreshLists: () => Promise<void>;
+  addToWatchlist: (token: string, animeId: number, status: string, animeData?: any) => Promise<void>;
   removeFromWatchlist: (token: string, watchlistId: number) => Promise<void>;
   updateWatchlistStatus: (token: string, watchlistId: number, status: string) => Promise<void>;
-  addToReadlist: (token: string, mangaId: number, status: string) => Promise<void>;
+  addToReadlist: (token: string, mangaId: number, status: string, mangaData?: any) => Promise<void>;
   removeFromReadlist: (token: string, readlistId: number) => Promise<void>;
   updateReadlistStatus: (token: string, readlistId: number, status: string) => Promise<void>;
   isInWatchlist: (animeId: number) => boolean;
@@ -33,12 +34,19 @@ export function ListProvider({ children, token }: ListProviderProps) {
 
   const fetchWatchlist = useCallback(async (token: string) => {
     try {
+      console.log('Fetching watchlist with token:', token ? 'token exists' : 'no token');
       setLoading(true);
       setError(null);
       const data = await apiService.getMyWatchlist(token);
+      console.log('Watchlist data received:', data);
+      if (!Array.isArray(data)) {
+        console.error('Expected an array but received:', data);
+        throw new Error('Invalid watchlist data format');
+      }
       setWatchlist(data);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to fetch watchlist';
+      console.error('Error fetching watchlist:', err);
       setError(message);
     } finally {
       setLoading(false);
@@ -69,10 +77,10 @@ export function ListProvider({ children, token }: ListProviderProps) {
     }
   }, [token, fetchWatchlist, fetchReadlist]);
 
-  const addToWatchlist = useCallback(async (token: string, animeId: number, status: string) => {
+  const addToWatchlist = useCallback(async (token: string, animeId: number, status: string, animeData?: any) => {
     try {
       setError(null);
-      const newItem = await apiService.addToWatchlist(token, animeId, status);
+      const newItem = await apiService.addToWatchlist(token, animeId, status, animeData);
       setWatchlist(prev => [...prev, newItem]);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to add to watchlist';
@@ -105,10 +113,10 @@ export function ListProvider({ children, token }: ListProviderProps) {
     }
   }, []);
 
-  const addToReadlist = useCallback(async (token: string, mangaId: number, status: string) => {
+  const addToReadlist = useCallback(async (token: string, mangaId: number, status: string, mangaData?: any) => {
     try {
       setError(null);
-      const newItem = await apiService.addToReadlist(token, mangaId, status);
+      const newItem = await apiService.addToReadlist(token, mangaId, status, mangaData);
       setReadlist(prev => [...prev, newItem]);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to add to readlist';
@@ -149,6 +157,22 @@ export function ListProvider({ children, token }: ListProviderProps) {
     return readlist.some(item => item.mangaId === mangaId);
   }, [readlist]);
 
+  const refreshLists = useCallback(async () => {
+    if (!token) return;
+    try {
+      setLoading(true);
+      await Promise.all([
+        fetchWatchlist(token),
+        fetchReadlist(token)
+      ]);
+    } catch (error) {
+      console.error('Error refreshing lists:', error);
+      setError('Failed to refresh lists');
+    } finally {
+      setLoading(false);
+    }
+  }, [token, fetchWatchlist, fetchReadlist]);
+
   return (
     <ListContext.Provider
       value={{
@@ -166,6 +190,7 @@ export function ListProvider({ children, token }: ListProviderProps) {
         updateReadlistStatus,
         isInWatchlist,
         isInReadlist,
+        refreshLists,
       }}
     >
       {children}

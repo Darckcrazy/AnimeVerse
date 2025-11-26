@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import './Anime.css';
-import React from "react";
-import * as watchlistService from "../services/watchlistService";
+import { useAuth } from '../hooks/useAuthContext';
+import { apiService } from '../services/api';
 
 type Review = {
   id: string;
@@ -52,6 +52,7 @@ type JikanEpisodeApi = {
 
 export default function AnimeDetail() {
   const { id } = useParams();
+  const { token } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [anime, setAnime] = useState<AnimeDetailData | null>(null);
@@ -194,24 +195,41 @@ export default function AnimeDetail() {
 
   const addToWatchlist = async () => {
     try {
-      const currentUserId = (() => {
-        const v = localStorage.getItem('userId'); // assicurati di salvare userId al login
-        return v ? Number(v) : null;
-      })();
-
-      const payload = {
-        userId: currentUserId,
-        itemId: anime?.mal_id || anime?.id,
-        title: anime?.title || anime?.name,
-        status: "TO_WATCH",
-        type: "ANIME",
-        personalRating: null
+      if (!token) {
+        alert("Devi effettuare il login per aggiungere alla watchlist");
+        return;
+      }
+      if (!anime?.mal_id) {
+        alert("Errore: ID anime non disponibile");
+        return;
+      }
+      const animeData = {
+        title: anime.title,  // Manteniamo il titolo a livello superiore
+        anime: {           // Aggiungiamo un oggetto anime con i dettagli completi
+          title: anime.title,
+          mal_id: anime.mal_id,
+          imageUrl: anime.images?.webp?.image_url || anime.images?.jpg?.image_url,
+          score: anime.score,
+          type: anime.type,
+          year: anime.year,
+          synopsis: anime.synopsis,
+          images: anime.images  // Includiamo l'oggetto images completo
+        },
+        image: anime.images?.webp?.image_url || anime.images?.jpg?.image_url,
+        score: anime.score,
+        type: anime.type,
+        year: anime.year,
+        synopsis: anime.synopsis
       };
-      await watchlistService.addToWatchlist(payload);
+      await apiService.addToWatchlist(token, anime.mal_id, 'planning', animeData);
       alert("Aggiunto alla watchlist");
     } catch (e: any) {
       console.error(e);
-      alert("Errore aggiunta watchlist: " + (e.message || e));
+      if (e.message && e.message.includes('already in watchlist')) {
+        alert("Questo anime è già presente nella tua watchlist!");
+      } else {
+        alert("Errore aggiunta watchlist: " + (e.message || e));
+      }
     }
   };
 

@@ -3,6 +3,8 @@ import './Anime.css';
 import AnimeSidebar from './AnimeSidebar';
 import { Link } from 'react-router-dom';
 import { useWatchlist } from '../hooks/useWatchlist';
+import { useAuth } from '../hooks/useAuthContext';
+import { apiService } from '../services/api';
 
 type Genre = {
   mal_id: number;
@@ -23,7 +25,10 @@ type JikanAnime = {
 };
 
 export default function Anime() {
-  const { addToWatchlist, removeFromWatchlist, isInWatchlist } = useWatchlist();
+  const { token } = useAuth();
+  const { watchlist, removeFromWatchlist, isInWatchlist } = useWatchlist();
+  
+  // Search and filter states
   const [query, setQuery] = useState('');
   const [debounced, setDebounced] = useState('');
   const [loading, setLoading] = useState(false);
@@ -31,11 +36,14 @@ export default function Anime() {
   const [results, setResults] = useState<JikanAnime[]>([]);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  
+  // Genres and filters
   const [genres, setGenres] = useState<Genre[]>([]);
   const [selectedGenre, setSelectedGenre] = useState<number | null>(null);
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [selectedSeason, setSelectedSeason] = useState<string | null>(null);
 
+  // Debounce search query
   useEffect(() => {
     const id = setTimeout(() => setDebounced(query.trim()), 350);
     return () => clearTimeout(id);
@@ -57,23 +65,55 @@ export default function Anime() {
         const limit = 24;
         const hasFilters = selectedGenre || selectedYear || selectedSeason;
         const query = debounced || (hasFilters ? ' ' : '');
-        let url = query
-          ? `https://api.jikan.moe/v4/anime?q=${encodeURIComponent(query)}&limit=${limit}&order_by=score&sort=desc&page=${page}`
-          : `https://api.jikan.moe/v4/top/anime?limit=${limit}&page=${page}`;
-
+        
+        // Build query parameters
+        const params = new URLSearchParams();
+        
+        if (query && query.trim() !== '') {
+          params.append('q', query.trim());
+        }
+        
         if (selectedGenre) {
-          url += `&genres=${selectedGenre}`;
+          params.append('genres', selectedGenre.toString());
         }
+        
         if (selectedYear) {
-          url += `&start_date=${selectedYear}-01-01&end_date=${selectedYear}-12-31`;
+          params.append('start_date', `${selectedYear}-01-01`);
+          params.append('end_date', `${selectedYear}-12-31`);
         }
+        
         if (selectedSeason) {
           const currentYear = new Date().getFullYear();
-          url += `&season=${selectedSeason}&year=${currentYear}`;
+          params.append('season', selectedSeason);
+          params.append('year', currentYear.toString());
         }
-
-        const res = await fetch(url, { signal: controller.signal });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        
+        // Always add pagination and ordering
+        params.append('page', page.toString());
+        params.append('limit', limit.toString());
+        if (!query) {
+          params.append('order_by', 'score');
+          params.append('sort', 'desc');
+        }
+        
+        // Use the proxy URL
+        const baseUrl = query ? '/jikan/anime' : '/jikan/top/anime';
+        const url = `${baseUrl}?${params.toString()}`;
+        
+        console.log('Fetching from:', url);
+        
+        const res = await fetch(url, { 
+          signal: controller.signal,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({}));
+          console.error('API Error:', errorData);
+          throw new Error(errorData.message || `HTTP ${res.status}`);
+        }
         const json = await res.json();
         const newData: JikanAnime[] = Array.isArray(json?.data) ? json.data : [];
         setHasMore(Boolean(json?.pagination?.has_next_page));
@@ -89,17 +129,40 @@ export default function Anime() {
     return () => controller.abort();
   }, [debounced, page, selectedGenre, selectedYear, selectedSeason]);
 
+  // Remove unused variables
+  // const [debouncedGenre, setDebouncedGenre] = useState<number | null>(null);
+  // const [debouncedYear, setDebouncedYear] = useState<number | null>(null);
+  // const [debouncedSeason, setDebouncedSeason] = useState<string | null>(null);
+  // const lastRequestTimeRef = useRef(0);
+  
+  // Remove unused REQUEST_DELAY_MS
+  // const REQUEST_DELAY_MS = 500;
+
   useEffect(() => {
     const controller = new AbortController();
     const run = async () => {
       try {
-        const res = await fetch('https://api.jikan.moe/v4/genres/anime', { signal: controller.signal });
+        console.log('Fetching genres...');
+        const res = await fetch('/jikan/genres/anime', { 
+          signal: controller.signal,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        if (!res.ok) {
+          console.error('Failed to fetch genres:', res.status);
+          return;
+        }
+        
         const json = await res.json();
+        console.log('Genres response:', json);
         setGenres(Array.isArray(json?.data) ? json.data : []);
-      } catch {
-        // ignore
+      } catch (error) {
+        console.error('Error fetching genres:', error);
       }
     };
+    
     run();
     return () => controller.abort();
   }, []);
@@ -210,7 +273,7 @@ export default function Anime() {
                 a.images?.webp?.image_url ||
                 a.images?.jpg?.image_url ||
                 'https://via.placeholder.com/300x420?text=Anime';
-              const inWatchlist = isInWatchlist(a.mal_id, 'anime');
+              const inWatchlist = isInWatchlist(a.mal_id);
               return (
                 <div key={a.mal_id} className="av-card-wrapper">
                   <Link to={`/anime/${a.mal_id}`} className="av-card">
@@ -230,17 +293,40 @@ export default function Anime() {
                   </Link>
                   <button
                     className={`av-card-btn ${inWatchlist ? 'av-card-btn--active' : ''}`}
-                    onClick={() => {
-                      if (inWatchlist) {
-                        removeFromWatchlist(a.mal_id, 'anime');
-                      } else {
-                        addToWatchlist({
-                          id: a.mal_id,
-                          type: 'anime',
-                          title: a.title,
-                          image: img,
-                          status: 'planning',
-                        });
+                    onClick={async () => {
+                      if (!token) {
+                        alert('Devi effettuare il login per aggiungere alla watchlist');
+                        return;
+                      }
+                      try {
+                        if (inWatchlist) {
+                          const watchlistItem = watchlist.find(item => item.animeId === a.mal_id);
+                          if (watchlistItem) {
+                            await removeFromWatchlist(token, watchlistItem.id);
+                          }
+                        } else {
+                          const animeData = {
+                            title: a.title,  // Manteniamo il titolo a livello superiore
+                            anime: {         // Aggiungiamo un oggetto anime con i dettagli completi
+                              title: a.title,
+                              mal_id: a.mal_id,
+                              imageUrl: a.images?.webp?.image_url || a.images?.jpg?.image_url,
+                              score: a.score,
+                              type: a.type,
+                              year: a.year,
+                              images: a.images  // Includiamo l'oggetto images completo
+                            },
+                            image: a.images?.webp?.image_url || a.images?.jpg?.image_url,
+                            score: a.score,
+                            type: a.type,
+                            year: a.year
+                          };
+                          await apiService.addToWatchlist(token, a.mal_id, 'planning', animeData);
+                        }
+                      } catch (err) {
+                        const msg = err instanceof Error ? err.message : 'Errore sconosciuto';
+                        alert(`Errore: ${msg}`);
+                        console.error('Watchlist error:', err);
                       }
                     }}
                     title={inWatchlist ? 'Rimuovi dalla watchlist' : 'Aggiungi alla watchlist'}

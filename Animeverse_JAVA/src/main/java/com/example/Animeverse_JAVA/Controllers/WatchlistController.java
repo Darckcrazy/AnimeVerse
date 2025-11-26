@@ -1,7 +1,7 @@
 package com.example.Animeverse_JAVA.Controllers;
 
+import com.example.Animeverse_JAVA.DTO.WatchlistResponse;
 import com.example.Animeverse_JAVA.Entities.Utente;
-import com.example.Animeverse_JAVA.Entities.Watchlist;
 import com.example.Animeverse_JAVA.Service.WatchlistService;
 import com.example.Animeverse_JAVA.Service.UtentiService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,7 +25,7 @@ public class WatchlistController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Watchlist addToWatchlist(
+    public WatchlistResponse addToWatchlist(
             @RequestParam Long animeId,
             @RequestParam String status) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -35,25 +35,31 @@ public class WatchlistController {
     }
 
     @PutMapping("/{watchlistId}")
-    public Watchlist updateStatus(
+    public WatchlistResponse updateStatus(
             @PathVariable Long watchlistId,
             @RequestParam String status) {
-        return this.watchlistService.updateStatus(watchlistId, status);
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String email = ((UserDetails) authentication.getPrincipal()).getUsername();
+        Utente currentUser = utentiService.findUtentiByEmail(email);
+        return this.watchlistService.updateStatus(watchlistId, status, currentUser.getUtenteId());
     }
 
     @DeleteMapping("/{watchlistId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void removeFromWatchlist(@PathVariable Long watchlistId) {
-        this.watchlistService.removeFromWatchlist(watchlistId);
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String email = ((UserDetails) authentication.getPrincipal()).getUsername();
+        Utente currentUser = utentiService.findUtentiByEmail(email);
+        this.watchlistService.removeFromWatchlist(watchlistId, currentUser.getUtenteId());
     }
 
     @GetMapping("/user/{userId}")
-    public List<Watchlist> getUserWatchlist(@PathVariable Long userId) {
+    public List<WatchlistResponse> getUserWatchlist(@PathVariable Long userId) {
         return this.watchlistService.getUserWatchlist(userId);
     }
 
     @GetMapping("/me")
-    public List<Watchlist> getMyWatchlist() {
+    public List<WatchlistResponse> getMyWatchlist() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String email = ((UserDetails) authentication.getPrincipal()).getUsername();
         Utente currentUser = utentiService.findUtentiByEmail(email);

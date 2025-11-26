@@ -10,7 +10,7 @@ import lombok.*;
 @Setter
 @NoArgsConstructor
 @ToString
-@JsonIgnoreProperties({})
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class Rating {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -20,10 +20,12 @@ public class Rating {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "utente_id", nullable = false)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Utente utente;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "anime_id", nullable = false)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Anime anime;
 
     @Column(name = "vote", nullable = false)

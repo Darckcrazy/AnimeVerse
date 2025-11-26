@@ -7,10 +7,16 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:3001',
+        target: 'https://api.jikan.moe',
         changeOrigin: true,
         secure: false,
-        rewrite: (path) => path.replace(/^\/api/, '/api')
+        rewrite: (path) => path.replace(/^\/api/, '/v4')
+      },
+      '/jikan': {
+        target: 'https://api.jikan.moe/v4',
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/jikan/, '')
       }
     }
   }

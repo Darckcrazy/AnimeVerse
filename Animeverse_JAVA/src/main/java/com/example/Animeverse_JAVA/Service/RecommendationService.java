@@ -29,7 +29,7 @@ public class RecommendationService {
 
         private final ObjectMapper objectMapper = new ObjectMapper();
 
-        public List<Anime> getRecommendationsByUser(Long userId) {
+        public List<Anime> getRecommendationsByUser(Long userId, String authHeader) {
                 if (userId == null) {
                         log.error("ID utente non valido: null");
                         throw new IllegalArgumentException("ID utente non valido");
@@ -42,10 +42,12 @@ public class RecommendationService {
 
                         HttpHeaders headers = new HttpHeaders();
                         headers.setContentType(MediaType.APPLICATION_JSON);
-                        // In a real application, get the token from the security context
-                        // String token =
-                        // SecurityContextHolder.getContext().getAuthentication().getCredentials().toString();
-                        // headers.setBearerAuth(token);
+                        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                                headers.set("Authorization", authHeader);
+                                log.debug("Added Authorization header to recommendation request");
+                        } else {
+                                log.warn("No valid Authorization header provided for recommendations");
+                        }
 
                         HttpEntity<?> entity = new HttpEntity<>(headers);
 
@@ -121,20 +123,19 @@ public class RecommendationService {
                 return Collections.emptyList();
         }
 
-        public List<Map<String, Object>> recommendForUser(Long userId, int limit) {
+        public List<Map<String, Object>> recommendForUser(Long userId, int limit, String authHeader) {
                 try {
-                        List<Anime> animeList = getRecommendationsByUser(userId);
+                        List<Anime> animeList = getRecommendationsByUser(userId, authHeader);
                         return animeList.stream()
                                         .limit(limit)
                                         .map(anime -> {
-                                                Map<String, Object> map = new HashMap<>();
-                                                map.put("animeId", anime.getJikanId());
-                                                map.put("title", anime.getTitle());
-                                                map.put("imageUrl", anime.getImageUrl());
-                                                map.put("score", anime.getScore());
-                                                map.put("year", anime.getYear());
-                                                map.put("genres", anime.getGenres());
-                                                return map;
+                                                Map<String, Object> animeMap = new HashMap<>();
+                                                animeMap.put("animeId", anime.getJikanId());
+                                                animeMap.put("title", anime.getTitle());
+                                                animeMap.put("imageUrl", anime.getImageUrl());
+                                                animeMap.put("score", anime.getScore());
+                                                animeMap.put("year", anime.getYear());
+                                                return animeMap;
                                         })
                                         .collect(Collectors.toList());
                 } catch (Exception e) {

@@ -1,5 +1,6 @@
 package com.example.Animeverse_JAVA.Service;
 
+import com.example.Animeverse_JAVA.DTO.WatchlistResponse;
 import com.example.Animeverse_JAVA.Entities.Anime;
 import com.example.Animeverse_JAVA.Entities.Utente;
 import com.example.Animeverse_JAVA.Entities.Watchlist;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -21,15 +23,22 @@ public class WatchlistService {
     private WatchlistRepository watchlistRepository;
     @Autowired
     private AnimeRepository animeRepository;
+    @Autowired
+    private AnimeService animeService;
 
-    public Watchlist addToWatchlist(Utente utente, Long animeId, String status) {
+    public WatchlistResponse addToWatchlist(Utente utente, Long animeId, String status) {
         Anime anime = this.animeRepository.findById(animeId)
-                .orElseThrow(() -> new IdNotFoundException("Anime with ID: " + animeId + " not found"));
-
-        this.watchlistRepository.findByUtente_UtenteIdAndAnime_AnimeId(utente.getUtenteId(), animeId)
-                .ifPresent(w -> {
-                    throw new BadRequestException("Anime already in watchlist");
+                .orElseGet(() -> {
+                    try {
+                        return this.animeService.importAnimeFromJikan(animeId);
+                    } catch (Exception e) {
+                        throw new IdNotFoundException("Anime with ID: " + animeId + " not found");
+                    }
                 });
+
+        if (this.watchlistRepository.existsByUtente_UtenteIdAndAnime_AnimeId(utente.getUtenteId(), animeId)) {
+            throw new BadRequestException("Anime already in watchlist");
+        }
 
         Watchlist watchlist = new Watchlist();
         watchlist.setUtente(utente);
@@ -39,28 +48,38 @@ public class WatchlistService {
 
         Watchlist saved = this.watchlistRepository.save(watchlist);
         log.info("Anime with ID: " + animeId + " added to watchlist of user: " + utente.getUtenteId());
-        return saved;
+        return WatchlistResponse.fromEntity(saved);
     }
 
-    public Watchlist updateStatus(Long watchlistId, String newStatus) {
+    public WatchlistResponse updateStatus(Long watchlistId, String newStatus, Long userId) {
         Watchlist watchlist = this.watchlistRepository.findById(watchlistId)
                 .orElseThrow(() -> new IdNotFoundException("Watchlist entry with ID: " + watchlistId + " not found"));
+
+        if (!watchlist.getUtente().getUtenteId().equals(userId)) {
+            throw new BadRequestException("You can only update your own watchlist entries");
+        }
 
         watchlist.setStatus(newStatus);
         Watchlist updated = this.watchlistRepository.save(watchlist);
         log.info("Watchlist entry with ID: " + watchlistId + " status updated to: " + newStatus);
-        return updated;
+        return WatchlistResponse.fromEntity(updated);
     }
 
-    public void removeFromWatchlist(Long watchlistId) {
+    public void removeFromWatchlist(Long watchlistId, Long userId) {
         Watchlist watchlist = this.watchlistRepository.findById(watchlistId)
                 .orElseThrow(() -> new IdNotFoundException("Watchlist entry with ID: " + watchlistId + " not found"));
+
+        if (!watchlist.getUtente().getUtenteId().equals(userId)) {
+            throw new BadRequestException("You can only delete your own watchlist entries");
+        }
 
         this.watchlistRepository.delete(watchlist);
         log.info("Watchlist entry with ID: " + watchlistId + " has been deleted");
     }
 
-    public List<Watchlist> getUserWatchlist(Long utenteId) {
-        return this.watchlistRepository.findByUtente_UtenteId(utenteId);
+    public List<WatchlistResponse> getUserWatchlist(Long utenteId) {
+        return this.watchlistRepository.findByUtente_UtenteId(utenteId).stream()
+                .map(WatchlistResponse::fromEntity)
+                .collect(Collectors.toList());
     }
 }

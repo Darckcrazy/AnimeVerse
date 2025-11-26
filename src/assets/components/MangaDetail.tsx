@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import './Anime.css';
+import { useAuth } from '../hooks/useAuthContext';
+import { apiService } from '../services/api';
 
 type MangaDetailData = {
   mal_id: number;
@@ -26,6 +28,7 @@ type MangaDetailData = {
 
 export default function MangaDetail() {
   const { id } = useParams();
+  const { token } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [manga, setManga] = useState<MangaDetailData | null>(null);
@@ -72,6 +75,39 @@ export default function MangaDetail() {
     [manga]
   );
 
+  const addToReadlist = async () => {
+    try {
+      if (!token) {
+        alert("Devi effettuare il login per aggiungere alla readlist");
+        return;
+      }
+      if (!manga?.mal_id) {
+        alert("Errore: ID manga non disponibile");
+        return;
+      }
+      const mangaData = {
+        title: manga.title,
+        image: manga.images?.webp?.image_url || manga.images?.jpg?.image_url,
+        score: manga.score || null,
+        type: 'manga',
+        year: manga.published?.prop?.from?.year || null,
+        synopsis: manga.synopsis,
+        chapters: manga.chapters || null,
+        volumes: manga.volumes || null,
+        status: 'planning' // Default status
+      };
+      await apiService.addToReadlist(token, manga.mal_id, 'planning', mangaData);
+      alert("Aggiunto alla readlist");
+    } catch (e: any) {
+      console.error(e);
+      if (e.message && e.message.includes('already in readlist')) {
+        alert("Questo manga è già presente nella tua readlist!");
+      } else {
+        alert("Errore aggiunta readlist: " + (e.message || e));
+      }
+    }
+  };
+
   return (
     <main className="av-anime container">
       <header className="av-anime__header">
@@ -110,6 +146,12 @@ export default function MangaDetail() {
               {authors && <div className="text-secondary small mt-2">Autori: {authors}</div>}
               {serializations && <div className="text-secondary small">Rivista: {serializations}</div>}
               {manga.synopsis && <p className="av-detail__synopsis">{manga.synopsis}</p>}
+              <button 
+                onClick={addToReadlist}
+                className="av-btn av-btn--primary mt-3"
+              >
+                <i className="bi bi-bookmark-plus"></i> Aggiungi alla Readlist
+              </button>
             </div>
           </div>
         </section>

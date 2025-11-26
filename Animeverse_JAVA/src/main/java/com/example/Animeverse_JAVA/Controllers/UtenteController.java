@@ -48,11 +48,11 @@ public class UtenteController {
 
     // GET personalized recommendations for current user
     @GetMapping("/me/recommendations")
-    public List<Anime> getMyRecommendations() {
+    public List<Anime> getMyRecommendations(@RequestHeader(value = "Authorization") String authHeader) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String email = ((UserDetails) authentication.getPrincipal()).getUsername();
         Utente currentUser = utentiService.findUtentiByEmail(email);
-        return this.recommendationService.getRecommendationsByUser(currentUser.getUtenteId());
+        return this.recommendationService.getRecommendationsByUser(currentUser.getUtenteId(), authHeader);
     }
 
     // PATCH dell'immagine profilo

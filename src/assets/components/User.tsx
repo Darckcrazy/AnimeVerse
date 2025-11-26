@@ -2,21 +2,53 @@ import { useState, useEffect } from 'react';
 import type { ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuthContext';
+import { apiService } from '../services/api';
 import './User.css';
 import PersonalizedRecommendations from './PersonalizedRecommendations';
+
+interface UserFormData {
+  username: string;
+  email: string;
+  bio?: string;
+  location?: string;
+  website?: string;
+  favoriteGenres: string[];
+}
 
 export default function User() {
   const { isLoggedIn, user, logout, token, setUser } = useAuth();
   const [activeTab, setActiveTab] = useState<'collection' | 'activity' | 'preferences'>('collection');
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
-  const [favoriteGenres, setFavoriteGenres] = useState<string[]>([]);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [formData, setFormData] = useState<UserFormData>({
+    username: '',
+    email: '',
+    bio: '',
+    location: '',
+    website: '',
+    favoriteGenres: []
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (user?.favoriteGenres) setFavoriteGenres(user.favoriteGenres);
+    if (user) {
+      setFormData({
+        username: user.username || '',
+        email: user.email || '',
+        bio: user.bio || '',
+        location: user.location || '',
+        website: user.website || '',
+        favoriteGenres: user.favoriteGenres || []
+      });
+      
+      if (user.avatarURL) {
+        setAvatarPreview(user.avatarURL);
+      }
+    }
   }, [user]);
 
   if (!isLoggedIn) {
@@ -47,76 +79,70 @@ export default function User() {
 
   const allGenres = ['Action', 'Adventure', 'Comedy', 'Drama', 'Fantasy', 'Horror', 'Mystery', 'Romance', 'Sci-Fi', 'Slice of Life', 'Thriller'];
 
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
   const handleGenreChange = (event: ChangeEvent<HTMLInputElement>) => {
     const { value, checked } = event.target;
-    if (checked) {
-      setFavoriteGenres((prev) => [...prev, value]);
-    } else {
-      setFavoriteGenres((prev) => prev.filter((genre) => genre !== value));
-    }
+    setFormData(prev => ({
+      ...prev,
+      favoriteGenres: checked
+        ? [...prev.favoriteGenres, value]
+        : prev.favoriteGenres.filter(genre => genre !== value)
+    }));
   };
 
   const handleAvatarChange = (event: ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
-      setAvatarFile(event.target.files[0]);
+      const file = event.target.files[0];
+      setAvatarFile(file);
+      
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAvatarPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
   const handleSavePreferences = async () => {
-    if (!user) return;
+    if (!token || !user) return;
     setLoading(true);
     setError(null);
+    setSuccess(null);
 
     try {
-      await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/utenti/me`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          username: user.username,
-          email: user.email,
-          password: user.password,
-          favoriteGenres: favoriteGenres,
-        }),
-      }).then(async (res) => {
-        if (!res.ok) throw new Error(await res.text());
-        const userData = await res.json();
-        setUser(userData);
-        alert('Preferences saved successfully!');
+      // Update user profile
+      const updatedUser = await apiService.updateUserProfile(token, {
+        username: formData.username,
+        email: formData.email,
+        bio: formData.bio,
+        location: formData.location,
+        website: formData.website,
+        favoriteGenres: formData.favoriteGenres
       });
-    } catch (e) {
-      if (e instanceof Error) setError(e.message);
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  const handleAvatarUpload = async () => {
-    if (!token || !avatarFile) return;
-    setLoading(true);
-    setError(null);
-
-    try {
-      const formData = new FormData();
-      formData.append('avatarUrl', avatarFile);
-
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/utenti/me/avatarUrl`, {
-        method: 'PATCH',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-      });
-      if (!response.ok) {
-        throw new Error(await response.text());
+      // Upload avatar if a new one was selected
+      if (avatarFile) {
+        const { avatarURL } = await apiService.uploadProfilePicture(token, avatarFile);
+        updatedUser.avatarURL = avatarURL;
       }
-      const userData = await response.json();
-      setUser(userData);
-      alert('Avatar uploaded successfully!');
-    } catch (e) {
-      if (e instanceof Error) setError(e.message);
+
+      setUser(updatedUser);
+      setSuccess('Profilo aggiornato con successo!');
+      
+      // Reset avatar file state after successful upload
+      setAvatarFile(null);
+      
+    } catch (err) {
+      const error = err instanceof Error ? err.message : 'Si è verificato un errore durante il salvataggio';
+      setError(error);
     } finally {
       setLoading(false);
     }
@@ -130,25 +156,39 @@ export default function User() {
         <section className="av-user-header">
           <div className="av-user-header__profile">
             <div className="av-user-avatar">
-              {user?.avatarURL ? (
-                <img src={user.avatarURL} alt="Avatar" />
-              ) : (
-                <i className="bi bi-person-fill"></i>
-              )}
-              <input 
-                type="file" 
-                accept="image/jpeg,image/png" 
-                onChange={handleAvatarChange} 
-                className="av-avatar-upload"
-                id="avatar-upload"
-              />
-              <label htmlFor="avatar-upload" className="av-avatar-upload-label">
-                <i className="bi bi-camera"></i>
-              </label>
+              <div className="avatar-container">
+                {avatarPreview ? (
+                  <img 
+                    src={avatarPreview} 
+                    alt="Avatar" 
+                    className="profile-avatar"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.onerror = null;
+                      target.src = 'https://via.placeholder.com/150';
+                    }}
+                  />
+                ) : (
+                  <div className="avatar-placeholder">
+                    <i className="bi bi-person-fill"></i>
+                  </div>
+                )}
+                <div className="avatar-upload-overlay">
+                  <input 
+                    type="file" 
+                    accept="image/jpeg,image/png,image/webp" 
+                    onChange={handleAvatarChange} 
+                    className="av-avatar-upload"
+                    id="avatar-upload"
+                    disabled={loading}
+                  />
+                  <label htmlFor="avatar-upload" className="av-avatar-upload-label">
+                    <i className="bi bi-camera-fill"></i>
+                  </label>
+                </div>
+              </div>
               {avatarFile && (
-                <button className="av-btn av-btn--small" onClick={handleAvatarUpload} disabled={loading}>
-                  Upload Avatar
-                </button>
+                <p className="avatar-filename">{avatarFile.name}</p>
               )}
             </div>
             <div className="av-user-header__info">
@@ -188,25 +228,104 @@ export default function User() {
 
         {activeTab === 'preferences' && (
           <section className="av-user-preferences">
-            <h2>Preferenze Utente</h2>
-            <form>
-              {allGenres.map((genre) => (
-                <label key={genre}>
-                  <input
-                    type="checkbox"
-                    value={genre}
-                    checked={favoriteGenres.includes(genre)}
-                    onChange={handleGenreChange}
-                  />
-                  {genre}
-                </label>
-              ))}
-              <br />
-              <button type="button" className="av-btn av-btn--primary" onClick={handleSavePreferences} disabled={loading}>
-                Salva Preferenze
-              </button>
+            <h2>Impostazioni Profilo</h2>
+            
+            {error && <div className="alert alert-danger">{error}</div>}
+            {success && <div className="alert alert-success">{success}</div>}
+            
+            <form onSubmit={(e) => { e.preventDefault(); handleSavePreferences(); }}>
+              <div className="form-group">
+                <label htmlFor="username">Username</label>
+                <input
+                  type="text"
+                  id="username"
+                  name="username"
+                  value={formData.username}
+                  onChange={handleInputChange}
+                  className="form-control"
+                  required
+                />
+              </div>
+              
+              <div className="form-group">
+                <label htmlFor="email">Email</label>
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  className="form-control"
+                  required
+                />
+              </div>
+              
+              <div className="form-group">
+                <label htmlFor="bio">Bio</label>
+                <textarea
+                  id="bio"
+                  name="bio"
+                  value={formData.bio}
+                  onChange={handleInputChange}
+                  className="form-control"
+                  rows={3}
+                  placeholder="Raccontaci qualcosa di te..."
+                />
+              </div>
+              
+              <div className="form-group">
+                <label htmlFor="location">Località</label>
+                <input
+                  type="text"
+                  id="location"
+                  name="location"
+                  value={formData.location || ''}
+                  onChange={handleInputChange}
+                  className="form-control"
+                  placeholder="Dove vivi?"
+                />
+              </div>
+              
+              <div className="form-group">
+                <label htmlFor="website">Sito Web</label>
+                <input
+                  type="url"
+                  id="website"
+                  name="website"
+                  value={formData.website || ''}
+                  onChange={handleInputChange}
+                  className="form-control"
+                  placeholder="https://esempio.com"
+                />
+              </div>
+              
+              <div className="form-group">
+                <label>Generi Preferiti</label>
+                <div className="genres-grid">
+                  {allGenres.map((genre) => (
+                    <label key={genre} className="genre-checkbox">
+                      <input
+                        type="checkbox"
+                        value={genre}
+                        checked={formData.favoriteGenres.includes(genre)}
+                        onChange={handleGenreChange}
+                      />
+                      <span>{genre}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              
+              <div className="form-actions">
+                <button 
+                  type="submit" 
+                  className="av-btn av-btn--primary" 
+                  disabled={loading}
+                >
+                  {loading ? 'Salvataggio in corso...' : 'Salva Modifiche'}
+                </button>
+              </div>
             </form>
-            {error && <p className="av-error">{error}</p>}
           </section>
         )}
 

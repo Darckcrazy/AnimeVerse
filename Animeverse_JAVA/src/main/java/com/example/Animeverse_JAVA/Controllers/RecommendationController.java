@@ -15,8 +15,10 @@ public class RecommendationController {
     private RecommendationService recommendationService;
 
     @GetMapping("/{userId}")
-    public ResponseEntity<List<Map<String, Object>>> getRecommendations(@PathVariable Long userId,
-            @RequestParam(defaultValue = "10") int limit) {
-        return ResponseEntity.ok(recommendationService.recommendForUser(userId, limit));
+    public ResponseEntity<List<Map<String, Object>>> getRecommendations(
+            @PathVariable Long userId,
+            @RequestParam(defaultValue = "10") int limit,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        return ResponseEntity.ok(recommendationService.recommendForUser(userId, limit, authHeader));
     }
 }

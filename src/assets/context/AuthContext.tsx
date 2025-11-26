@@ -7,6 +7,10 @@ export interface User {
   avatarURL?: string;
   favoriteGenres?: string[];
   password?: string;
+  bio?: string;
+  location?: string;
+  website?: string;
+  joinDate?: string;
 }
 
 export interface AuthContextType {

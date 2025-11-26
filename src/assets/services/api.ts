@@ -18,12 +18,38 @@ export interface AuthResponse {
   tokenType: string;
 }
 
+export interface User {
+  id: number;
+  username: string;
+  email: string;
+  avatarURL?: string;
+  favoriteGenres?: string[];
+  password?: string;
+  bio?: string;
+  location?: string;
+  website?: string;
+  joinDate?: string;
+}
+
 export interface Watchlist {
   watchlistId: number;
   animeId: number;
   animeTitolo: string;
   status: string;
   dataAggiunzione: string;
+  imageUrl?: string;
+  episodes?: number;
+  score?: number;
+  progress?: number;
+  anime?: {
+    title?: string;
+    imageUrl?: string;
+    synopsis?: string;
+    status?: string;
+    episodes?: number;
+    score?: number;
+    year?: number;
+  };
 }
 
 export interface Readlist {
@@ -32,6 +58,20 @@ export interface Readlist {
   mangaTitolo: string;
   status: string;
   dataAggiunzione: string;
+  imageUrl?: string;
+  chapters?: number;
+  volumes?: number;
+  score?: number;
+  progress?: number;
+  manga?: {
+    title?: string;
+    imageUrl?: string;
+    synopsis?: string;
+    status?: string;
+    chapters?: number;
+    score?: number;
+    year?: number;
+  };
 }
 
 class ApiService {
@@ -118,12 +158,26 @@ class ApiService {
     return response.json();
   }
 
-  async addToWatchlist(token: string, animeId: number, status: string): Promise<Watchlist> {
+  async addToWatchlist(token: string, animeId: number, status: string, animeData?: {
+    title?: string;
+    imageUrl?: string;
+    synopsis?: string;
+    status?: string;
+    episodes?: number;
+    score?: number;
+    year?: number;
+  }): Promise<Watchlist> {
+    const body = animeData ? JSON.stringify({ status, ...animeData }) : JSON.stringify({ status });
     const response = await fetch(`${API_BASE_URL}/watchlist?animeId=${animeId}&status=${status}`, {
       method: 'POST',
       headers: this.getHeaders(token),
+      body,
     });
-    if (!response.ok) throw new Error('Failed to add to watchlist');
+    if (!response.ok) {
+      const text = await response.text();
+      console.error(`Watchlist error - Token: ${token}, Status: ${response.status}, Body: ${text}`);
+      throw new Error(`Failed to add to watchlist (${response.status}): ${text}`);
+    }
     return response.json();
   }
 
@@ -141,7 +195,11 @@ class ApiService {
       method: 'DELETE',
       headers: this.getHeaders(token),
     });
-    if (!response.ok) throw new Error('Failed to remove from watchlist');
+    if (!response.ok) {
+      const text = await response.text();
+      console.error(`Remove Watchlist 403 - Token: ${token}, Status: ${response.status}, Body: ${text}`);
+      throw new Error(`Failed to remove from watchlist (${response.status}): ${text}`);
+    }
   }
 
   async getMyReadlist(token: string): Promise<Readlist[]> {
@@ -152,12 +210,26 @@ class ApiService {
     return response.json();
   }
 
-  async addToReadlist(token: string, mangaId: number, status: string): Promise<Readlist> {
+  async addToReadlist(token: string, mangaId: number, status: string, mangaData?: {
+    title?: string;
+    imageUrl?: string;
+    synopsis?: string;
+    status?: string;
+    chapters?: number;
+    score?: number;
+    year?: number;
+  }): Promise<Readlist> {
+    const body = mangaData ? JSON.stringify({ status, ...mangaData }) : JSON.stringify({ status });
     const response = await fetch(`${API_BASE_URL}/readlist?mangaId=${mangaId}&status=${status}`, {
       method: 'POST',
       headers: this.getHeaders(token),
+      body,
     });
-    if (!response.ok) throw new Error('Failed to add to readlist');
+    if (!response.ok) {
+      const text = await response.text();
+      console.error(`Readlist error - Token: ${token}, Status: ${response.status}, Body: ${text}`);
+      throw new Error(`Failed to add to readlist (${response.status}): ${text}`);
+    }
     return response.json();
   }
 
@@ -176,6 +248,44 @@ class ApiService {
       headers: this.getHeaders(token),
     });
     if (!response.ok) throw new Error('Failed to remove from readlist');
+  }
+
+  async updateUserProfile(
+    token: string,
+    userData: Partial<Omit<User, 'id' | 'avatarURL'>>
+  ): Promise<User> {
+    const response = await fetch(`${API_BASE_URL}/utenti/me`, {
+      method: 'PUT',
+      headers: this.getHeaders(token),
+      body: JSON.stringify(userData),
+    });
+    
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(error || 'Failed to update profile');
+    }
+    
+    return response.json();
+  }
+
+  async uploadProfilePicture(token: string, file: File): Promise<{ avatarURL: string }> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch(`${API_BASE_URL}/utenti/me/avatar`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(error || 'Failed to upload profile picture');
+    }
+
+    return response.json();
   }
 }
 

@@ -7,12 +7,14 @@ import lombok.*;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "readlist")
+@Table(name = "readlist", uniqueConstraints = {
+    @UniqueConstraint(name = "uk_readlist_utente_manga", columnNames = {"utente_id", "manga_id"})
+})
 @Getter
 @Setter
 @NoArgsConstructor
 @ToString
-@JsonIgnoreProperties({})
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class Readlist {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -22,10 +24,12 @@ public class Readlist {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "utente_id", nullable = false)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Utente utente;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "manga_id", nullable = false)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Manga manga;
 
     @Column(name = "status")

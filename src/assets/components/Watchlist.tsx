@@ -1,20 +1,375 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './Watchlist.css';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useWatchlist } from '../hooks/useWatchlist';
+import { useReadlist } from '../hooks/useReadlist';
+import { useAuth } from '../hooks/useAuthContext';
+import { API_BASE } from '../services/api';
+
+// Default image for fallback (using a reliable placeholder service)
+const DEFAULT_IMAGE = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMzAwIiB2aWV3Qm94PSIwIDAgMjAwIDMwMCIgZmlsbD0iI2VlZSI+CiAgPHJlY3Qgd2lkdGg9IjIwMCIgaGVpZ2h0PSIzMDAiIGZpbGw9IiNlZWVlZWUiLz4KICA8dGV4dCB4PSI1MCUiIHk9IjUwJSIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjE0IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBhbGlnbm1lbnQtYmFzZWxpbmU9Im1pZGRsZSIgZmlsbD0iIzk5OSI+Tm8gSW1hZ2U8L3RleHQ+Cjwvc3ZnPg==';
+
+// Base item properties that are common to all list items
+interface BaseListItem {
+  id: number;
+  status: string;
+  title?: string;
+  image?: string;
+  score?: number;
+  synopsis?: string;
+  year?: number;
+  type?: 'anime' | 'manga' | 'unknown';
+}
+
+// Type for items that don't match anime or manga types
+interface UnknownItem extends BaseListItem {
+  type: 'unknown';
+}
+
+// Base item properties that are common to both anime and manga
+interface MediaItem extends BaseListItem {
+  id: number;
+  title?: string;
+  status: string;
+  image?: string;
+  imageUrl?: string;
+  score?: number;
+  synopsis?: string;
+  year?: number;
+}
+
+// Type guard to check if an item is an AnimeListItem
+function isAnimeItem(item: BaseListItem): item is AnimeListItem {
+  return 'progress' in item || 'totalEpisodes' in item || 'anime' in item || 'animeTitolo' in item;
+}
+
+// Type guard to check if an item is a MangaListItem
+function isMangaItem(item: BaseListItem): item is MangaListItem {
+  return 'chapters' in item || 'volumes' in item || 'manga' in item || 'mangaId' in item;
+}
+
+interface AnimeListItem extends MediaItem {
+  type?: 'anime';
+  progress?: number;
+  totalEpisodes?: number;
+  episodes?: number;
+  animeId?: number;
+  anime?: {
+    id?: number;
+    title?: string;
+    episodes?: number;
+    imageUrl?: string;
+    images?: {
+      jpg?: {
+        image_url?: string;
+        large_image_url?: string;
+      };
+      webp?: {
+        image_url?: string;
+        large_image_url?: string;
+      };
+    };
+    score?: number;
+  };
+  animeTitolo?: string;
+}
+
+interface MangaListItem extends MediaItem {
+  type?: 'manga';
+  chapters?: number;
+  volumes?: number;
+  mangaId?: number;
+  manga?: {
+    id?: number;
+    title?: string;
+    chapters?: number;
+    volumes?: number;
+    imageUrl?: string;
+    score?: number;
+    synopsis?: string;
+    year?: number;
+  };
+}
+
+// This type is used as a union of both anime and manga item types
+// This type is used as a union of all possible item types
+export type ListItem = AnimeListItem | MangaListItem | UnknownItem;
 
 export default function Watchlist() {
-  const { watchlist, removeFromWatchlist } = useWatchlist();
+  const { token } = useAuth();
+  const navigate = useNavigate();
+  const { 
+    watchlist: animeList, 
+    removeFromWatchlist, 
+    loading, 
+    error 
+  } = useWatchlist();
+  const { readlist: mangaList, removeFromReadlist } = useReadlist();
+  
+  // Function to handle navigation to item details
+  const handleItemClick = (item: AnimeListItem | MangaListItem | UnknownItem, e: React.MouseEvent) => {
+    // Don't navigate if clicking on action buttons or links
+    if (
+      (e.target as HTMLElement).closest('.av-btn--danger') || 
+      (e.target as HTMLElement).tagName === 'A' ||
+      (e.target as HTMLElement).tagName === 'BUTTON'
+    ) {
+      return;
+    }
+    
+    // Log the item for debugging
+    console.log('Clicked item:', item);
+    
+    // Determine the item type based on the active tab
+    const isManga = activeTab === 'manga';
+    
+    // Log all available properties for debugging
+    console.log('Item details:', JSON.stringify(item, null, 2));
+    
+    if (!item.title) {
+      console.error('No title found for item:', item);
+      return;
+    }
+    
+    // Create a slug from the title (convert to lowercase, replace spaces with hyphens, remove special chars)
+    const slug = item.title
+      .toLowerCase()
+      .replace(/[^\w\s-]/g, '') // Remove special characters
+      .replace(/\s+/g, '-')      // Replace spaces with hyphens
+      .replace(/-+/g, '-');       // Replace multiple hyphens with a single one
+    
+    // Create a function to handle the navigation
+    const navigateToItem = () => {
+      if (isManga) {
+        console.log('Navigating to manga with slug:', slug, 'Title:', item.title);
+        navigate(`/manga/${slug}`, { 
+          state: { 
+            itemData: item,
+            fromWatchlist: true
+          },
+          replace: true 
+        });
+      } else {
+        console.log('Navigating to anime with slug:', slug, 'Title:', item.title);
+        navigate(`/anime/${slug}`, { 
+          state: { 
+            itemData: item,
+            fromWatchlist: true
+          },
+          replace: true 
+        });
+      }
+    };
+    
+    // Call the navigation function
+    navigateToItem();
+  };
   const [activeTab, setActiveTab] = useState<'anime' | 'manga'>('anime');
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  
+  // Log the current watchlist data for debugging
+  useEffect(() => {
+    console.log('Current watchlist data:', animeList);
+    console.log('Manga list data:', mangaList);
+    
+    if (animeList.length > 0) {
+      console.log('First anime item structure:', JSON.stringify(animeList[0], null, 2));
+      console.log('First anime ID:', animeList[0].id, 
+                 'Anime ID:', (animeList[0] as AnimeListItem).animeId, 
+                 'Nested ID:', (animeList[0] as AnimeListItem).anime?.id,
+                 'Title:', animeList[0].title);
+    }
+    
+    if (mangaList.length > 0) {
+      console.log('First manga item structure:', JSON.stringify(mangaList[0], null, 2));
+      console.log('First manga ID:', mangaList[0].id, 
+                 'Manga ID:', (mangaList[0] as MangaListItem).mangaId, 
+                 'Nested ID:', (mangaList[0] as MangaListItem).manga?.id,
+                 'Title:', mangaList[0].title);
+    }
+  }, [animeList, mangaList]);
 
-  const filteredItems = watchlist
+  const currentList = activeTab === 'anime' 
+    ? (animeList as AnimeListItem[]) 
+    : (mangaList as MangaListItem[]);
+
+  // Function to safely get image URL with proper error handling and URL validation
+  const getImageUrl = (item: AnimeListItem | MangaListItem): string => {
+    try {
+      // If it's already a data URI, return it as is
+      if (item.image?.startsWith('data:')) {
+        return item.image;
+      }
+      
+      // If it's a full URL, return it as is
+      if (item.image?.startsWith('http')) {
+        return item.image;
+      }
+      
+      // If it's a relative path, prepend API_BASE
+      if (item.image) {
+        return `${API_BASE}${item.image.startsWith('/') ? '' : '/'}${item.image}`;
+      }
+      
+      // Handle anime items
+      if (isAnimeItem(item)) {
+        // Try anime.imageUrl
+        if (item.anime?.imageUrl) {
+          return item.anime.imageUrl.startsWith('http')
+            ? item.anime.imageUrl
+            : `${API_BASE}${item.anime.imageUrl.startsWith('/') ? '' : '/'}${item.anime.imageUrl}`;
+        }
+        
+        // Try anime.images
+        if (item.anime?.images) {
+          const images = item.anime.images;
+          const imageUrl = images.jpg?.image_url || 
+                          images.webp?.image_url || 
+                          images.jpg?.large_image_url || 
+                          images.webp?.large_image_url;
+          
+          if (imageUrl) {
+            return imageUrl.startsWith('http') 
+              ? imageUrl 
+              : `${API_BASE}${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`;
+          }
+        }
+        
+        // Try to get image from the root of the item
+        if (item.imageUrl) {
+          return item.imageUrl.startsWith('http')
+            ? item.imageUrl
+            : `${API_BASE}${item.imageUrl.startsWith('/') ? '' : '/'}${item.imageUrl}`;
+        }
+      }
+      
+      // Handle manga items
+      if (isMangaItem(item)) {
+        if (item.manga?.imageUrl) {
+          return item.manga.imageUrl.startsWith('http')
+            ? item.manga.imageUrl
+            : `${API_BASE}${item.manga.imageUrl.startsWith('/') ? '' : '/'}${item.manga.imageUrl}`;
+        }
+        
+        if (item.imageUrl) {
+          return item.imageUrl.startsWith('http')
+            ? item.imageUrl
+            : `${API_BASE}${item.imageUrl.startsWith('/') ? '' : '/'}${item.imageUrl}`;
+        }
+      }
+      
+      // If no valid image found, return default
+      return DEFAULT_IMAGE;
+    } catch (error) {
+      console.error('Error getting image URL:', error, 'Item:', item);
+      return DEFAULT_IMAGE;
+    }
+  };
+
+  const filteredItems = currentList
     .filter((item) => {
-      if (item.type !== activeTab) return false;
       if (filterStatus === 'all') return true;
       return item.status === filterStatus;
     })
-    .sort((a, b) => b.id - a.id);
+    .sort((a, b) => b.id - a.id)
+    .map((item: AnimeListItem | MangaListItem) => {
+      // For anime items
+      if (isAnimeItem(item)) {
+        // Get the title from the most reliable source first
+        const title = item.title || item.anime?.title || item.animeTitolo || 'Senza titolo';
+        
+        // Get image URL using the safe function
+        const imageUrl = getImageUrl(item);
+        
+        // Get additional details
+        const score = item.score || item.anime?.score;
+        const episodes = item.totalEpisodes || item.episodes || item.anime?.episodes;
+        const synopsis = item.synopsis || item.anime?.synopsis;
+        const year = item.year || item.anime?.year;
+        
+        // Log the item data for debugging
+        console.log('Anime item:', {
+          id: item.id,
+          title,
+          imageUrl,
+          status: item.status,
+          progress: item.progress,
+          totalEpisodes: episodes,
+          score: score,
+          year: year,
+          synopsis: synopsis,
+          rawItem: item // Include the raw item for debugging
+        });
+        
+        return {
+          ...item,
+          title,
+          image: imageUrl,
+          score,
+          episodes,
+          synopsis,
+          year,
+          type: 'anime' as const,
+          totalEpisodes: item.totalEpisodes || item.anime?.episodes || 0,
+          progress: item.progress || 0,
+          score: item.score || item.anime?.score,
+          // Ensure we don't include manga-specific properties
+          chapters: undefined,
+          volumes: undefined,
+          manga: undefined,
+          mangaId: undefined
+        };
+      }
+      
+      // For manga items
+      if (isMangaItem(item)) {
+        const manga = item.manga || {};
+        const title = manga.title || item.title || 'Senza titolo';
+        let imageUrl = '';
+        
+        // Handle image URL
+        if (manga.imageUrl) {
+          imageUrl = manga.imageUrl.startsWith('http') 
+            ? manga.imageUrl 
+            : `${API_BASE}${manga.imageUrl}`;
+        } else if (item.image) {
+          imageUrl = item.image.startsWith('http')
+            ? item.image
+            : `${API_BASE}${item.image}`;
+        } else {
+          imageUrl = 'https://via.placeholder.com/200x300?text=No+Image';
+        }
+        
+        return {
+          ...item,
+          title,
+          image: imageUrl,
+          type: 'manga' as const,
+          chapters: manga.chapters ?? item.chapters,
+          volumes: manga.volumes ?? item.volumes,
+          synopsis: manga.synopsis || item.synopsis,
+          year: manga.year || item.year,
+          score: manga.score || item.score,
+          // Ensure we don't include anime-specific properties
+          progress: undefined,
+          totalEpisodes: undefined,
+          anime: undefined,
+          animeId: undefined,
+          animeTitolo: undefined
+        };
+      }
+      
+      // Fallback for items that don't match either type (shouldn't happen)
+      console.warn('Item does not match anime or manga type:', item);
+      return {
+        id: 0,
+        status: 'unknown',
+        title: 'Sconosciuto',
+        image: DEFAULT_IMAGE,
+        type: 'unknown' as const,
+        score: 0
+      } as const;
+    });
 
   const statusLabels: Record<string, string> = {
     watching: 'In corso',
@@ -83,7 +438,24 @@ export default function Watchlist() {
           </div>
         </div>
 
-        {filteredItems.length === 0 ? (
+        {loading ? (
+          <div className="av-watchlist-loading">
+            <i className="bi bi-arrow-repeat"></i>
+            <p>Caricamento in corso...</p>
+          </div>
+        ) : error ? (
+          <div className="av-watchlist-error">
+            <i className="bi bi-exclamation-triangle"></i>
+            <p>Si è verificato un errore nel caricamento della watchlist.</p>
+            <p className="error-details">{error}</p>
+            <button 
+              className="av-btn av-btn--primary"
+              onClick={() => window.location.reload()}
+            >
+              Ricarica
+            </button>
+          </div>
+        ) : filteredItems.length === 0 ? (
           <div className="av-watchlist-empty">
             <i className="bi bi-inbox"></i>
             <h2>Nessun elemento</h2>
@@ -99,9 +471,24 @@ export default function Watchlist() {
         ) : (
           <div className="av-watchlist-grid">
             {filteredItems.map((item) => (
-              <div key={item.id} className="av-watchlist-card">
+              <div 
+                key={item.id} 
+                className="av-watchlist-card"
+                onClick={(e) => handleItemClick(item, e)}
+              >
                 <div className="av-watchlist-card__image">
-                  <img src={item.image} alt={item.title} />
+                  <div className="av-watchlist-image-container">
+                    <img 
+                      src={item.image || DEFAULT_IMAGE} 
+                      alt={item.title || 'Cover image'}
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.onerror = null; // Prevent infinite loop
+                        target.src = DEFAULT_IMAGE;
+                      }}
+                      loading="lazy"
+                    />
+                  </div>
                   <div className={`av-status-badge ${getStatusColor(item.status)}`}>
                     <i className={`bi ${statusIcons[item.status]}`}></i>
                     <span>{statusLabels[item.status]}</span>
@@ -114,26 +501,54 @@ export default function Watchlist() {
                   )}
                 </div>
                 <div className="av-watchlist-card__content">
-                  <h3>{item.title}</h3>
-                  {item.progress && item.totalEpisodes && (
+                  <h3 title={item.title}>
+                    {item.title.length > 30 ? `${item.title.substring(0, 30)}...` : item.title}
+                  </h3>
+                  {activeTab === 'anime' && isAnimeItem(item) && item.progress !== undefined && item.totalEpisodes !== undefined && (
                     <div className="av-progress">
                       <div className="av-progress__bar">
                         <div
                           className="av-progress__fill"
                           style={{
-                            width: `${(item.progress / item.totalEpisodes) * 100}%`,
+                            width: `${Math.min(100, (item.progress / (item.totalEpisodes || 1)) * 100)}%`,
                           }}
                         ></div>
                       </div>
                       <span className="av-progress__text">
-                        {item.progress}/{item.totalEpisodes}
+                        {item.progress}/{item.totalEpisodes || '?'}
                       </span>
+                    </div>
+                  )}
+                  {activeTab === 'manga' && isMangaItem(item) && (item.chapters || item.volumes) && (
+                    <div className="av-manga-progress">
+                      {item.chapters && (
+                        <div className="av-manga-progress__item">
+                          <i className="bi bi-book"></i> {item.chapters} {item.chapters === 1 ? 'capitolo' : 'capitoli'}
+                        </div>
+                      )}
+                      {item.volumes && (
+                        <div className="av-manga-progress__item">
+                          <i className="bi bi-collection"></i> {item.volumes} {item.volumes === 1 ? 'volume' : 'volumi'}
+                        </div>
+                      )}
                     </div>
                   )}
                   <div className="av-watchlist-card__actions">
                     <button
                       className="av-btn av-btn--small av-btn--outline av-btn--danger"
-                      onClick={() => removeFromWatchlist(item.id, item.type)}
+                      onClick={async (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        try {
+                          if (activeTab === 'anime') {
+                            if (token) await removeFromWatchlist(token, item.id);
+                          } else {
+                            if (token) await removeFromReadlist(token, item.id);
+                          }
+                        } catch (error) {
+                          console.error('Error removing item:', error);
+                        }
+                      }}
                     >
                       <i className="bi bi-trash"></i> Rimuovi
                     </button>
@@ -150,34 +565,25 @@ export default function Watchlist() {
             <div className="av-stat-box">
               <span className="av-stat-label">In corso</span>
               <span className="av-stat-value">
-                {watchlist.filter((i) => i.type === activeTab && i.status === 'watching').length}
+                {currentList.filter((item) => item.status === 'watching').length}
               </span>
             </div>
             <div className="av-stat-box">
               <span className="av-stat-label">Completati</span>
               <span className="av-stat-value">
-                {watchlist.filter((i) => i.type === activeTab && i.status === 'completed').length}
+                {currentList.filter((item) => item.status === 'completed').length}
+              </span>
+            </div>
+            <div className="av-stat-box">
+              <span className="av-stat-label">In pausa</span>
+              <span className="av-stat-value">
+                {currentList.filter((item) => item.status === 'on-hold').length}
               </span>
             </div>
             <div className="av-stat-box">
               <span className="av-stat-label">Da guardare</span>
               <span className="av-stat-value">
-                {watchlist.filter((i) => i.type === activeTab && i.status === 'planning').length}
-              </span>
-            </div>
-            <div className="av-stat-box">
-              <span className="av-stat-label">Media voto</span>
-              <span className="av-stat-value">
-                {watchlist
-                  .filter((i) => i.type === activeTab && i.score)
-                  .length > 0
-                  ? (
-                      watchlist
-                        .filter((i) => i.type === activeTab && i.score)
-                        .reduce((sum, i) => sum + (i.score || 0), 0) /
-                      watchlist.filter((i) => i.type === activeTab && i.score).length
-                    ).toFixed(1)
-                  : '-'}
+                {currentList.filter((item) => item.status === 'planning').length}
               </span>
             </div>
           </div>

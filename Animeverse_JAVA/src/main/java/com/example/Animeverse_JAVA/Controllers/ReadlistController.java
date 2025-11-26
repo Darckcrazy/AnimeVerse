@@ -38,13 +38,19 @@ public class ReadlistController {
     public Readlist updateStatus(
             @PathVariable Long readlistId,
             @RequestParam String status) {
-        return this.readlistService.updateStatus(readlistId, status);
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String email = ((UserDetails) authentication.getPrincipal()).getUsername();
+        Utente currentUser = utentiService.findUtentiByEmail(email);
+        return this.readlistService.updateStatus(readlistId, status, currentUser.getUtenteId());
     }
 
     @DeleteMapping("/{readlistId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void removeFromReadlist(@PathVariable Long readlistId) {
-        this.readlistService.removeFromReadlist(readlistId);
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String email = ((UserDetails) authentication.getPrincipal()).getUsername();
+        Utente currentUser = utentiService.findUtentiByEmail(email);
+        this.readlistService.removeFromReadlist(readlistId, currentUser.getUtenteId());
     }
 
     @GetMapping("/user/{userId}")

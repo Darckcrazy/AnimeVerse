@@ -1,6 +1,7 @@
 package com.example.Animeverse_JAVA.External;
 
 import com.example.Animeverse_JAVA.Entities.Anime;
+import com.example.Animeverse_JAVA.Util.RateLimiter;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import kong.unirest.HttpResponse;
@@ -8,6 +9,7 @@ import kong.unirest.Unirest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -17,9 +19,17 @@ public class JikanService {
 
     private static final String JIKAN_BASE_URL = "https://api.jikan.moe/v4";
     private static final ObjectMapper objectMapper = new ObjectMapper();
+    private final RateLimiter rateLimiter;
+
+    public JikanService() {
+        // Jikan API allows 60 requests per minute with 2 concurrent requests
+        // We'll be conservative and use 50 requests per minute to be safe
+        this.rateLimiter = new RateLimiter(50, Duration.ofMinutes(1));
+    }
 
     public List<Anime> searchAnimeFromJikan(String query) {
         try {
+            rateLimiter.acquire();
             String url = JIKAN_BASE_URL + "/anime?query=" + query + "&limit=10";
             HttpResponse<String> response = Unirest.get(url)
                     .asString();
@@ -48,6 +58,7 @@ public class JikanService {
 
     public Anime getAnimeDetailsFromJikan(Long jikanId) {
         try {
+            rateLimiter.acquire();
             String url = JIKAN_BASE_URL + "/anime/" + jikanId;
             HttpResponse<String> response = Unirest.get(url)
                     .asString();
@@ -80,8 +91,13 @@ public class JikanService {
         if (animeNode.has("synopsis")) {
             anime.setSynopsis(animeNode.get("synopsis").asText());
         }
-        if (animeNode.has("images") && animeNode.get("images").has("jpg")) {
-            anime.setImageUrl(animeNode.get("images").get("jpg").get("image_url").asText());
+        if (animeNode.has("images")) {
+            JsonNode images = animeNode.get("images");
+            if (images.has("jpg") && images.get("jpg").has("image_url")) {
+                anime.setImageUrl(images.get("jpg").get("image_url").asText());
+            } else if (images.has("webp") && images.get("webp").has("image_url")) {
+                anime.setImageUrl(images.get("webp").get("image_url").asText());
+            }
         }
         if (animeNode.has("episodes")) {
             anime.setEpisodes(animeNode.get("episodes").asInt());
