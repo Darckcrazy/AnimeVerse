@@ -86,7 +86,6 @@ export default function AnimeDetail() {
     if (!id) return;
     
     const controller = new AbortController();
-    const API_BASE_URL = 'https://api.jikan.moe/v4';
     
     const run = async () => {
       // Only show loading if we don't have initial data from location state
@@ -99,7 +98,7 @@ export default function AnimeDetail() {
         // Only fetch if we don't have data from location state or if we need to refresh
         if (!anime || !location.state?.fromList) {
           try {
-            const detailRes = await fetch(`${API_BASE_URL}/anime/${id}/full`, {
+            const detailRes = await fetch(`/jikan/anime/${id}/full`, {
               signal: controller.signal,
               headers: {
                 'Content-Type': 'application/json',
@@ -121,7 +120,7 @@ export default function AnimeDetail() {
 
         // Episodes list (videos/episodes)
         try {
-          const epRes = await fetch(`${API_BASE_URL}/anime/${id}/videos/episodes`, {
+          const epRes = await fetch(`/jikan/anime/${id}/episodes`, {
             signal: controller.signal,
             headers: {
               'Content-Type': 'application/json',
@@ -130,11 +129,11 @@ export default function AnimeDetail() {
           
           if (epRes.status === 429) {
             console.warn('Rate limited by Jikan API for episodes');
-            // Don't show error to user for rate limiting
+            setEpisodes([]);
           } else if (epRes.ok) {
             const epJson = await epRes.json();
-            const items: EpisodeItem[] = Array.isArray(epJson?.data?.episodes)
-              ? (epJson.data.episodes as JikanEpisodeApi[]).map((e) => ({
+            const items: EpisodeItem[] = Array.isArray(epJson?.data)
+              ? (epJson.data as JikanEpisodeApi[]).map((e) => ({
                   mal_id: Number(e.mal_id ?? e.episode ?? 0),
                   title: e.title ?? `Episode ${e.episode}`,
                   aired: e.aired ?? null,
@@ -150,13 +149,12 @@ export default function AnimeDetail() {
           }
         } catch (error) {
           console.error('Error fetching episodes:', error);
-          // Don't show error to user for episodes as they might be missing for some anime
           setEpisodes([]);
         }
 
-        // Streaming providers (if any)
+        // Streaming providers - try to fetch from /anime endpoint which may have streaming info
         try {
-          const streamRes = await fetch(`${API_BASE_URL}/anime/${id}/streaming`, {
+          const streamRes = await fetch(`/jikan/anime/${id}`, {
             signal: controller.signal,
             headers: {
               'Content-Type': 'application/json',
@@ -165,12 +163,13 @@ export default function AnimeDetail() {
           
           if (streamRes.status === 429) {
             console.warn('Rate limited by Jikan API for streaming data');
-            // Don't show error to user for rate limiting
+            setStreaming([]);
           } else if (streamRes.ok) {
             const sJson = await streamRes.json();
+            const streamingData = sJson?.data?.streaming;
             type JikanStreamingApi = { name?: string; url?: string };
-            const items: Array<{ name: string; url: string }> = Array.isArray(sJson?.data)
-              ? (sJson.data as JikanStreamingApi[])
+            const items: Array<{ name: string; url: string }> = Array.isArray(streamingData)
+              ? (streamingData as JikanStreamingApi[])
                   .filter((s) => Boolean(s?.name) && Boolean(s?.url))
                   .map((s) => ({
                       name: String(s.name || 'Unknown'), 
@@ -184,7 +183,6 @@ export default function AnimeDetail() {
           }
         } catch (error) {
           console.error('Error fetching streaming data:', error);
-          // Don't show error to user for streaming as it might not be available for all anime
           setStreaming([]);
         }
 

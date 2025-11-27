@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useLocation } from 'react-router-dom';
 import './Anime.css';
 import { useAuth } from '../hooks/useAuthContext';
 import { apiService } from '../services/api';
@@ -28,27 +28,58 @@ type MangaDetailData = {
 
 export default function MangaDetail() {
   const { id } = useParams();
+  const location = useLocation();
   const { token } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [manga, setManga] = useState<MangaDetailData | null>(null);
+  const [manga, setManga] = useState<MangaDetailData | null>(() => {
+    if (location.state?.item) {
+      return {
+        mal_id: location.state.item.id || 0,
+        title: location.state.item.title || '',
+        title_english: location.state.item.title,
+        synopsis: location.state.item.synopsis,
+        chapters: location.state.item.chapters,
+        volumes: location.state.item.volumes,
+        images: {
+          jpg: { image_url: location.state.item.image || '' },
+          webp: { image_url: location.state.item.image || '' }
+        },
+        score: location.state.item.score,
+        published: {
+          prop: {
+            from: { year: location.state.item.year }
+          }
+        },
+        type: location.state.item.type
+      };
+    }
+    return null;
+  });
 
   useEffect(() => {
     if (!id) return;
     const controller = new AbortController();
     const run = async () => {
-      setLoading(true);
+      if (!manga) {
+        setLoading(true);
+      }
       setError(null);
       try {
-        // Use the proxy endpoint instead of direct Jikan API call
-        const res = await fetch(`/jikan/manga/${id}/full`, {
-          signal: controller.signal,
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
-        setManga(json?.data ?? null);
+        if (!manga || !location.state?.fromList) {
+          const res = await fetch(`/jikan/manga/${id}/full`, {
+            signal: controller.signal,
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const json = await res.json();
+          setManga(json?.data ?? null);
+        }
       } catch (e: unknown) {
         if (e instanceof DOMException && e.name === 'AbortError') return;
+        console.error('Error fetching manga details:', e);
         setError('Impossibile caricare i dettagli. Riprova più tardi.');
       } finally {
         setLoading(false);

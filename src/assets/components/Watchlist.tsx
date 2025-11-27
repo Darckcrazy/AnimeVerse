@@ -157,35 +157,23 @@ export default function Watchlist() {
       return;
     }
     
-    // Log the item for debugging
     console.log('Navigating to item details:', item);
     
-    // Determine the item type based on the active tab
     const isManga = activeTab === 'manga';
-    
-    // Get the title, defaulting to 'Untitled' if not available
     const title = item.title || (isManga ? 'Manga Senza Titolo' : 'Anime Senza Titolo');
     
-    // Create a slug from the title
-    const slug = title
-      .toLowerCase()
-      .replace(/[^\w\s-]/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-');
+    const itemId = isManga 
+      ? (item as MangaListItem).mangaId || item.id 
+      : (item as AnimeListItem).animeId || item.id;
     
-    // Prepare the item data to pass to the detail page
     const itemData = {
       ...item,
-      // Ensure we have the correct ID based on the item type
-      id: isManga 
-        ? (item as MangaListItem).mangaId || item.id 
-        : (item as AnimeListItem).animeId || item.id,
+      id: itemId,
       title: title,
       type: isManga ? 'manga' : 'anime'
     };
     
-    // Navigate to the detail page
-    const path = `/${isManga ? 'manga' : 'anime'}/${slug}`;
+    const path = `/${isManga ? 'manga' : 'anime'}/${itemId}`;
     console.log(`Navigating to: ${path}`, { itemData });
     
     navigate(path, { 
@@ -193,7 +181,7 @@ export default function Watchlist() {
         item: itemData,
         fromList: true
       },
-      replace: false // Changed from true to allow browser back navigation
+      replace: false
     });
   };
   const [activeTab, setActiveTab] = useState<'anime' | 'manga'>('anime');

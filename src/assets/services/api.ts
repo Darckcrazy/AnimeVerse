@@ -254,10 +254,14 @@ class ApiService {
     token: string,
     userData: Partial<Omit<User, 'id' | 'avatarURL'>>
   ): Promise<User> {
+    const cleanedData = Object.fromEntries(
+      Object.entries(userData).filter(([, value]) => value !== null && value !== undefined && value !== '')
+    );
+
     const response = await fetch(`${API_BASE_URL}/utenti/me`, {
       method: 'PUT',
       headers: this.getHeaders(token),
-      body: JSON.stringify(userData),
+      body: JSON.stringify(cleanedData),
     });
     
     if (!response.ok) {

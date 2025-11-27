@@ -86,15 +86,23 @@ public class UtentiService {
     public Utente findUtentiByIdAndUpdate(Long utenteId, UtenteDTO payload) {
         Utente found = this.findUtentiById(utenteId);
 
-        if (!found.getEmail().equals(payload.email())) {
+        if (payload.email() != null && !found.getEmail().equals(payload.email())) {
             this.utenteRepository.findByEmail(payload.email()).ifPresent(utente -> {
                 throw new BadRequestException("The email " + utente.getEmail() + " has not been found. Try again.");
             });
         }
 
-        found.setUsername(payload.username());
-        found.setEmail(payload.email());
-        found.setPassword(bcrypt.encode(payload.password()));
+        if (payload.username() != null && !payload.username().isEmpty()) {
+            found.setUsername(payload.username());
+        }
+        
+        if (payload.email() != null && !payload.email().isEmpty()) {
+            found.setEmail(payload.email());
+        }
+        
+        if (payload.password() != null && !payload.password().isEmpty()) {
+            found.setPassword(bcrypt.encode(payload.password()));
+        }
 
         if (payload.favoriteGenres() != null) {
             found.setFavoriteGenres(payload.favoriteGenres());
