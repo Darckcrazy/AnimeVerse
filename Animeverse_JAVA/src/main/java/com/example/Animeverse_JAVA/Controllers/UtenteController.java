@@ -55,9 +55,9 @@ public class UtenteController {
         return this.recommendationService.getRecommendationsByUser(currentUser.getUtenteId(), authHeader);
     }
 
-    // PATCH dell'immagine profilo
-    @PatchMapping("/me/avatarUrl")
-    public Utente updateMyAvatar(@RequestParam("avatarUrl") MultipartFile file) {
+    // POST dell'immagine profilo
+    @PostMapping("/me/avatar")
+    public Utente updateMyAvatar(@RequestParam("file") MultipartFile file) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String email = ((UserDetails) authentication.getPrincipal()).getUsername();
         Utente currentUser = utentiService.findUtentiByEmail(email);

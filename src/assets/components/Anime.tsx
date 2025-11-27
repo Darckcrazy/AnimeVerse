@@ -149,9 +149,9 @@ export default function Anime() {
         }
         
         if (selectedSeason) {
-          const currentYear = new Date().getFullYear();
+          const seasonYear = selectedYear || new Date().getFullYear();
           params.append('season', selectedSeason);
-          params.append('year', currentYear.toString());
+          params.append('year', seasonYear.toString());
         }
         
         // Always add pagination and ordering
@@ -162,8 +162,8 @@ export default function Anime() {
           params.append('sort', 'desc');
         }
         
-        // Use the proxy URL
-        const baseUrl = query ? '/jikan/anime' : '/jikan/top/anime';
+        // Use the proxy URL - use /jikan/anime if we have query or filters
+        const baseUrl = (query && query.trim() !== '') || hasFilters ? '/jikan/anime' : '/jikan/top/anime';
         const url = `${baseUrl}?${params.toString()}`;
         
         try {

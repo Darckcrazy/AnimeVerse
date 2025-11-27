@@ -62,6 +62,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/trending", "/api/recommendations/**").permitAll()
                         // Allow authenticated access to user-specific endpoints
                         .requestMatchers("/api/utenti/me").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/utenti/me/avatar").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/watchlist/me").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/watchlist").authenticated()
                         .requestMatchers(HttpMethod.PUT, "/api/watchlist/**").authenticated()
