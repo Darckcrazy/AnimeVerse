@@ -22,3 +22,23 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Sensitive configuration files
+config/application-secret.properties
+application-secret.properties
+env.properties
+*.jks
+*.p12
+*.key
+*.pem
+*.crt
+
+# Spring Boot
+/target/
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# Application properties
+**/application-*.properties
+!**/src/main/**/application-*.properties
+!**/src/test/**/application-*.properties
