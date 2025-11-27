@@ -1,37 +1,43 @@
+// Import delle dipendenze necessarie da React e altre librerie
 import { useState, useEffect } from 'react';
 import './Watchlist.css';
 import { Link, useNavigate } from 'react-router-dom';
+// Import degli hook personalizzati per la gestione delle watchlist e dell'autenticazione
 import { useWatchlist } from '../hooks/useWatchlist';
 import { useReadlist } from '../hooks/useReadlist';
 import { useAuth } from '../hooks/useAuthContext';
 import { API_BASE } from '../services/api';
 
-// Default image for fallback (using a reliable placeholder service)
+// Immagine di fallback predefinita (usando un servizio di placeholder)
+// Questa immagine viene mostrata quando l'immagine di un anime/manga non è disponibile
 const DEFAULT_IMAGE = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMzAwIiB2aWV3Qm94PSIwIDAgMjAwIDMwMCIgZmlsbD0iI2VlZSI+CiAgPHJlY3Qgd2lkdGg9IjIwMCIgaGVpZ2h0PSIzMDAiIGZpbGw9IiNlZWVlZWUiLz4KICA8dGV4dCB4PSI1MCUiIHk9IjUwJSIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjE0IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBhbGlnbm1lbnQtYmFzZWxpbmU9Im1pZGRsZSIgZmlsbD0iIzk5OSI+Tm8gSW1hZ2U8L3RleHQ+Cjwvc3ZnPg==';
 
-// Base item properties that are common to all list items
+// Interfaccia base per le proprietà comuni a tutti gli elementi della lista
+// Definisce la struttura base di un elemento (anime o manga) nella watchlist
 interface BaseListItem {
-  id: number;
-  title?: string;
-  image?: string;
+  id: number;  // ID univoco dell'elemento
+  title?: string;  // Titolo dell'anime/manga
+  image?: string;  // URL dell'immagine
+  // Stato di visualizzazione: in corso, completato, in pausa, pianificato, abbandonato
   status: 'watching' | 'completed' | 'on-hold' | 'planning' | 'dropped';
-  score?: number;
-  progress?: number;
-  type?: 'anime' | 'manga';
-  synopsis?: string;
-  year?: number;
-  episodes?: number;
-  totalEpisodes?: number;
-  chapters?: number;
-  volumes?: number;
-  animeId?: number;
-  mangaId?: number;
-  animeTitolo?: string;
+  score?: number;  // Punteggio assegnato dall'utente (da 1 a 10)
+  progress?: number;  // Progresso di visualizzazione (episodi visti)
+  type?: 'anime' | 'manga';  // Tipo di contenuto
+  synopsis?: string;  // Trama
+  year?: number;  // Anno di uscita
+  episodes?: number;  // Numero di episodi (per anime)
+  totalEpisodes?: number;  // Numero totale di episodi
+  chapters?: number;  // Numero di capitoli (per manga)
+  volumes?: number;  // Numero di volumi (per manga)
+  animeId?: number;  // ID specifico per anime
+  mangaId?: number;  // ID specifico per manga
+  animeTitolo?: string;  // Titolo alternativo (in italiano)
+  // Oggetto per la gestione delle immagini in diversi formati
   images?: {
-    jpg?: { image_url?: string; large_image_url?: string };
-    webp?: { image_url?: string; large_image_url?: string };
+    jpg?: { image_url?: string; large_image_url?: string };  // Immagini in formato JPG
+    webp?: { image_url?: string; large_image_url?: string };  // Immagini in formato WebP
   };
-  imageUrl?: string;
+  imageUrl?: string;  // URL alternativo per l'immagine
 }
 
 interface AnimeListItem extends BaseListItem {
@@ -75,12 +81,14 @@ interface MangaListItem extends BaseListItem {
 
 type UnknownItem = Partial<AnimeListItem & MangaListItem>;
 
-// Type guard to check if an item is an AnimeListItem
+// Funzione di type guard per verificare se un elemento è un AnimeListItem
+// Controlla la presenza di proprietà specifiche degli anime
 function isAnimeItem(item: BaseListItem): item is AnimeListItem {
   return 'progress' in item || 'totalEpisodes' in item || 'anime' in item || 'animeTitolo' in item;
 }
 
-// Type guard to check if an item is a MangaListItem
+// Funzione di type guard per verificare se un elemento è un MangaListItem
+// Controlla la presenza di proprietà specifiche dei manga
 function isMangaItem(item: BaseListItem): item is MangaListItem {
   return 'chapters' in item || 'volumes' in item || 'manga' in item || 'mangaId' in item;
 }
@@ -132,20 +140,35 @@ interface MangaListItem extends MediaItem {
 // This type is used as a union of all possible item types
 export type ListItem = AnimeListItem | MangaListItem | UnknownItem;
 
+// Componente principale della watchlist
+// Gestisce la visualizzazione e l'interazione con le liste di anime e manga
+// Utilizza hook personalizzati per la gestione dello stato e delle operazioni CRUD
 export default function Watchlist() {
-  const { token } = useAuth();
-  const navigate = useNavigate();
-  const { 
-    watchlist: animeList, 
-    removeFromWatchlist, 
-    loading, 
-    error 
-  } = useWatchlist();
-  const { readlist: mangaList, removeFromReadlist } = useReadlist();
+  // Hook per l'autenticazione e la navigazione
+  const { token } = useAuth();  // Token di autenticazione
+  const navigate = useNavigate();  // Hook per la navigazione programmatica
   
-  // Function to handle navigation to item details
+  // Hook personalizzato per gestire la watchlist degli anime
+  const { 
+    watchlist: animeList,  // Lista degli anime
+    removeFromWatchlist,   // Funzione per rimuovere un anime
+    loading,               // Stato di caricamento
+    error                 // Eventuali errori
+  } = useWatchlist();
+  
+  // Hook personalizzato per gestire la readlist dei manga
+  const { 
+    readlist: mangaList,   // Lista dei manga
+    removeFromReadlist     // Funzione per rimuovere un manga
+  } = useReadlist();
+  
+  // Gestisce il click su un elemento della lista
+  // Permette la navigazione alla pagina dei dettagli dell'elemento selezionato
   const handleItemClick = (item: AnimeListItem | MangaListItem | UnknownItem, e: React.MouseEvent) => {
-    // Don't navigate if clicking on action buttons, links, or status dropdown
+    // Non eseguire la navigazione se si clicca su:
+    // - Pulsanti di azione (es. rimuovi)
+    // - Dropdown di stato
+    // - Link o pulsanti
     if (
       (e.target as HTMLElement).closest('.av-btn--danger') || 
       (e.target as HTMLElement).closest('.av-status-dropdown') ||
@@ -154,50 +177,63 @@ export default function Watchlist() {
       (e.target as HTMLElement).closest('button') ||
       (e.target as HTMLElement).closest('a')
     ) {
-      return;
+      return;  // Esci dalla funzione senza navigare
     }
     
-    console.log('Navigating to item details:', item);
+    console.log('Navigazione ai dettagli dell\'elemento:', item);
     
+    // Determina se si tratta di un manga o di un anime in base alla scheda attiva
     const isManga = activeTab === 'manga';
+    // Usa il titolo dell'elemento o un valore predefinito se non presente
     const title = item.title || (isManga ? 'Manga Senza Titolo' : 'Anime Senza Titolo');
     
+    // Ottiene l'ID corretto in base al tipo di elemento
     const itemId = isManga 
       ? (item as MangaListItem).mangaId || item.id 
       : (item as AnimeListItem).animeId || item.id;
     
+    // Prepara i dati dell'elemento da passare alla pagina dei dettagli
     const itemData = {
       ...item,
       id: itemId,
       title: title,
-      type: isManga ? 'manga' : 'anime'
+      type: isManga ? 'manga' : 'anime'  // Imposta esplicitamente il tipo
     };
     
+    // Costruisce il percorso di navigazione (es. /anime/123 o /manga/456)
     const path = `/${isManga ? 'manga' : 'anime'}/${itemId}`;
-    console.log(`Navigating to: ${path}`, { itemData });
+    console.log(`Navigazione a: ${path}`, { itemData });
     
+    // Esegue la navigazione alla pagina dei dettagli
+    // Passa i dati dell'elemento come stato della navigazione
     navigate(path, { 
       state: { 
-        item: itemData,
-        fromList: true
+        item: itemData,  // Dettagli completi dell'elemento
+        fromList: true   // Flag che indica che la navigazione proviene dalla lista
       },
-      replace: false
+      replace: false  // Aggiunge una nuova voce allo storico di navigazione
     });
   };
+  // Stato per gestire la scheda attiva (anime o manga)
   const [activeTab, setActiveTab] = useState<'anime' | 'manga'>('anime');
+  // Stato per il filtro dello stato di visualizzazione (tutti, in corso, completati, ecc.)
   const [filterStatus, setFilterStatus] = useState<string>('all');
   
-  // Log the current watchlist data for debugging
+  // Effetto per il debug che viene eseguito al caricamento del componente
+  // e ogni volta che le liste di anime o manga cambiano
   useEffect(() => {
-    console.log('Current watchlist data:', animeList);
-    console.log('Manga list data:', mangaList);
+    // Log per il debug: mostra i dati correnti delle liste
+    console.log('Dati attuali della watchlist:', animeList);
+    console.log('Dati della lista manga:', mangaList);
     
+    // Se ci sono anime nella lista, mostra la struttura del primo elemento
+    // per facilitare il debug
     if (animeList.length > 0) {
-      console.log('First anime item structure:', JSON.stringify(animeList[0], null, 2));
-      console.log('First anime ID:', animeList[0].id, 
-                 'Anime ID:', (animeList[0] as AnimeListItem).animeId, 
-                 'Nested ID:', (animeList[0] as AnimeListItem).anime?.id,
-                 'Title:', animeList[0].title);
+      console.log('Struttura del primo elemento anime:', JSON.stringify(animeList[0], null, 2));
+      console.log('ID primo anime:', animeList[0].id, 
+                 'ID anime:', (animeList[0] as AnimeListItem).animeId, 
+                 'ID annidato:', (animeList[0] as AnimeListItem).anime?.id,
+                 'Titolo:', animeList[0].title);
     }
     
     if (mangaList.length > 0) {

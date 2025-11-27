@@ -1,10 +1,15 @@
+// Importa i componenti di React Router
 import { Link } from 'react-router-dom';
+// Importa lo stile CSS della pagina Home
 import './Home.css';
+// Importa il componente delle raccomandazioni
 import RecommendationsSection from './RecommendationsSection';
 
+// Componente della pagina Home - Landing page principale dell'applicazione
 export default function Home() {
   return (
     <main className="av-landing">
+      {/* Sezione hero con il titolo e il sottotitolo dell'applicazione */}
       <section className="av-hero container">
         <h1 className="av-hero__title">
           Anime<span>Verse</span>
@@ -15,7 +20,9 @@ export default function Home() {
         </p>
       </section>
 
+      {/* Sezione con i pannelli principali per esplorare anime, manga e community */}
       <section id="explore" className="av-panels container">
+        {/* Pannello per gli anime */}
         <article className="av-panel av-panel--anime">
           <div className="av-panel__icon">
             <i className="bi bi-film"></i>
@@ -27,6 +34,7 @@ export default function Home() {
             <i className="bi bi-arrow-right-short"></i>
           </Link>
         </article>
+        {/* Pannello per i manga */}
         <article className="av-panel av-panel--manga">
           <div className="av-panel__icon">
             <i className="bi bi-book"></i>
@@ -38,6 +46,7 @@ export default function Home() {
             <i className="bi bi-arrow-right-short"></i>
           </Link>
         </article>
+        {/* Pannello per la community */}
         <article id="trending" className="av-panel av-panel--discover">
           <div className="av-panel__icon">
             <i className="bi bi-people-fill"></i>
@@ -51,10 +60,12 @@ export default function Home() {
         </article>
       </section>
 
+      {/* Sezione con le raccomandazioni personalizzate */}
       <section className="av-recommendations-section container">
         <RecommendationsSection />
       </section>
 
+      {/* Footer con il copyright */}
       <footer className="av-footer container">
         <small>© {new Date().getFullYear()} AnimeVerse</small>
       </footer>
